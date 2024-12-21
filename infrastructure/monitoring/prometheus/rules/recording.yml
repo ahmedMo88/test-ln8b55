@@ -1,0 +1,108 @@
+# Prometheus Recording Rules Configuration
+# Version: 2.47.0
+# Purpose: Pre-compute and aggregate frequently used metrics for the workflow automation platform
+
+groups:
+  # Workflow Performance Metrics
+  - name: workflow_metrics
+    interval: 1m
+    rules:
+      # Average workflow execution duration over 5m
+      - record: workflow:execution_duration:avg_5m
+        expr: |
+          rate(workflow_automation_workflow_execution_duration_seconds_sum[5m]) 
+          / 
+          rate(workflow_automation_workflow_execution_duration_seconds_count[5m])
+        labels:
+          aggregation: avg_5m
+      
+      # Workflow execution rate by status over 5m
+      - record: workflow:execution_count:rate_5m
+        expr: sum(rate(workflow_automation_workflow_execution_total[5m])) by (status)
+        labels:
+          aggregation: rate_5m
+
+  # API Performance Metrics
+  - name: api_metrics
+    interval: 30s
+    rules:
+      # Average API request duration over 5m
+      - record: api:request_duration:avg_5m
+        expr: |
+          rate(workflow_automation_http_request_duration_seconds_sum[5m])
+          /
+          rate(workflow_automation_http_request_duration_seconds_count[5m])
+        labels:
+          aggregation: avg_5m
+      
+      # API error rate ratio over 5m
+      - record: api:error_rate:ratio_5m
+        expr: |
+          sum(rate(workflow_automation_http_requests_total{status=~"5.."}[5m]))
+          /
+          sum(rate(workflow_automation_http_requests_total[5m]))
+        labels:
+          aggregation: ratio_5m
+
+  # Integration Service Metrics
+  - name: integration_metrics
+    interval: 1m
+    rules:
+      # Integration connection error rate by service over 5m
+      - record: integration:connection_errors:rate_5m
+        expr: sum(rate(workflow_automation_integration_connection_errors_total[5m])) by (service)
+        labels:
+          aggregation: rate_5m
+      
+      # Average integration request latency over 5m
+      - record: integration:latency:avg_5m
+        expr: |
+          rate(workflow_automation_integration_request_duration_seconds_sum[5m])
+          /
+          rate(workflow_automation_integration_request_duration_seconds_count[5m])
+        labels:
+          aggregation: avg_5m
+
+  # AI Processing Metrics
+  - name: ai_metrics
+    interval: 1m
+    rules:
+      # Average AI processing duration over 5m
+      - record: ai:processing_duration:avg_5m
+        expr: |
+          rate(workflow_automation_ai_processing_duration_seconds_sum[5m])
+          /
+          rate(workflow_automation_ai_processing_duration_seconds_count[5m])
+        labels:
+          aggregation: avg_5m
+      
+      # AI processing error rate ratio over 5m
+      - record: ai:error_rate:ratio_5m
+        expr: |
+          sum(rate(workflow_automation_ai_processing_errors_total[5m]))
+          /
+          sum(rate(workflow_automation_ai_processing_total[5m]))
+        labels:
+          aggregation: ratio_5m
+
+  # System Resource Metrics
+  - name: system_metrics
+    interval: 2m
+    rules:
+      # Memory usage ratio by pod
+      - record: system:memory_usage:ratio
+        expr: |
+          sum(container_memory_usage_bytes) by (pod)
+          /
+          sum(container_spec_memory_limit_bytes) by (pod)
+        labels:
+          aggregation: ratio
+      
+      # CPU usage ratio by pod over 5m
+      - record: system:cpu_usage:ratio
+        expr: |
+          sum(rate(container_cpu_usage_seconds_total[5m])) by (pod)
+          /
+          sum(container_spec_cpu_quota) by (pod)
+        labels:
+          aggregation: ratio
