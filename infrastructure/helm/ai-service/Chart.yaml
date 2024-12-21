@@ -1,0 +1,50 @@
+apiVersion: v2
+name: ai-service
+description: AI Service for workflow automation platform providing intelligent automation capabilities with GPU support and integrated monitoring
+type: application
+version: 1.0.0
+appVersion: 1.0.0
+kubeVersion: ">=1.28.0"
+
+# Dependencies section for required charts
+dependencies:
+  - name: prometheus
+    version: 15.18.0
+    repository: https://prometheus-community.github.io/helm-charts
+    condition: monitoring.enabled
+    tags:
+      - monitoring
+  - name: grafana
+    version: 6.57.4
+    repository: https://grafana.github.io/helm-charts
+    condition: monitoring.enabled
+    tags:
+      - monitoring
+
+# Maintainers information
+maintainers:
+  - name: Platform Team
+    email: platform@company.com
+
+# Keywords for chart discovery
+keywords:
+  - ai
+  - machine-learning
+  - workflow-automation
+  - intelligent-automation
+  - gpu-optimized
+  - prometheus-metrics
+  - grafana-dashboards
+
+# Additional metadata
+home: https://github.com/company/workflow-platform
+sources:
+  - https://github.com/company/workflow-platform
+
+# Artifact Hub annotations
+annotations:
+  artifacthub.io/changes: "Initial release of AI service with GPU support and monitoring integration"
+  artifacthub.io/containsSecurityUpdates: "false"
+  artifacthub.io/prerelease: "false"
+  artifacthub.io/license: "Apache-2.0"
+  artifacthub.io/recommendations: "Requires Kubernetes 1.28+ and GPU support"
