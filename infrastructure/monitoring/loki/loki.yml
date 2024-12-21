@@ -1,0 +1,143 @@
+# Loki Configuration v2.9.0
+# Enterprise-grade log aggregation and querying system
+
+# Server configuration
+auth_enabled: true
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9096
+  log_level: info
+  http_server_read_timeout: 300s
+  http_server_write_timeout: 300s
+  grpc_server_max_recv_msg_size: 67108864  # 64MB
+  grpc_server_max_send_msg_size: 67108864  # 64MB
+
+# Storage configuration for log chunks and indexes
+storage_config:
+  type: filesystem
+  filesystem:
+    directory: /loki/chunks
+  boltdb_shipper:
+    active_index_directory: /loki/index
+    cache_location: /loki/cache
+    shared_store: filesystem
+    cache_ttl: 24h
+
+  # Index configuration
+  index:
+    prefix: index_
+    period: 24h
+    cache_ttl: 12h
+    cache_size: 256MB
+
+  # Cache configuration for improved query performance
+  cache:
+    enable_fifocache: true
+    fifocache:
+      max_size_bytes: 2GB
+      validity: 24h
+      chunk_size_limit: 1MB
+      cache_ttl: 24h
+    memcached:
+      expiration: 24h
+      batch_size: 100
+      parallel_operations: 100
+
+  # Chunk storage configuration
+  chunks:
+    target_size_bytes: 1572864  # 1.5MB
+    encoding: snappy
+    index_period_hours: 24
+    retention_period: 168h
+    storage_directory: /loki/chunks
+
+# Ingestion and query limits configuration
+limits_config:
+  enforce_metric_name: false
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h
+  creation_grace_period: 1h
+  ingestion_rate_mb: 10
+  ingestion_burst_size_mb: 20
+  max_global_streams_per_user: 5000
+  max_chunks_per_query: 1000000
+  max_query_length: 1h
+  max_query_parallelism: 32
+  cardinality_limit: 100000
+  max_streams_per_user: 10000
+  max_line_size: 256kb
+  max_entries_limit_per_query: 5000
+  max_cache_freshness_per_query: 1m
+
+# Table manager for retention and cleanup
+table_manager:
+  retention_deletes_enabled: true
+  retention_period: 168h
+  poll_interval: 15m
+  creation_grace_period: 1h
+  index_tables_provisioning:
+    enable_ondemand_throughput_mode: true
+    provisioned_write_throughput: 1000
+    provisioned_read_throughput: 300
+    inactive_write_throughput: 100
+    inactive_read_throughput: 100
+
+# Query scheduler configuration
+query_scheduler:
+  max_outstanding_requests_per_tenant: 100
+  queue_length_cap: 50000
+  scheduler_worker_concurrency: 10
+  max_scheduler_workers: 50
+
+# Compactor configuration for optimizing storage
+compactor:
+  working_directory: /loki/compactor
+  shared_store: filesystem
+  compaction_interval: 10m
+  retention_enabled: true
+  retention_delete_delay: 2h
+  retention_delete_worker_count: 150
+
+# Schema configuration
+schema_config:
+  configs:
+    - from: "2023-01-01"
+      store: boltdb-shipper
+      object_store: filesystem
+      schema: v12
+      index:
+        prefix: index_
+        period: 24h
+
+# Frontend configuration for query handling
+frontend:
+  compress_responses: true
+  log_queries_longer_than: 5s
+  max_outstanding_per_tenant: 100
+  tail_proxy_url: http://localhost:3100
+
+# Runtime configuration
+runtime_config:
+  file: /etc/loki/runtime.yaml
+  reload_period: 10s
+
+# Analytics configuration
+analytics:
+  reporting_enabled: false
+
+# Tracing configuration for observability
+tracing:
+  enabled: true
+  type: jaeger
+  jaeger:
+    agent_endpoint: "localhost:6831"
+    sampler_type: const
+    sampler_param: 1
+
+# Common configuration
+common:
+  path_prefix: /loki
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
