@@ -1,0 +1,197 @@
+# Default values for monitoring-service
+# Provides configuration for metrics collection, health checks, and distributed tracing
+# Version: 1.0.0
+
+# Global chart settings
+nameOverride: ""
+fullnameOverride: ""
+clusterDomain: "cluster.local"
+
+# Replica count for high availability
+replicaCount: 3
+
+# Container image configuration
+image:
+  repository: monitoring-service
+  tag: "1.0.0"
+  pullPolicy: Always
+  pullSecrets: []
+
+# Pod annotations for Prometheus service discovery
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "9090"
+  prometheus.io/path: "/metrics"
+  prometheus.io/scheme: "http"
+
+# Pod security context
+securityContext:
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 2000
+
+# Service configuration
+service:
+  type: ClusterIP
+  ports:
+    metrics:
+      port: 9090
+      protocol: TCP
+      name: metrics
+    health:
+      port: 8080
+      protocol: TCP
+      name: health
+    tracing:
+      port: 16686
+      protocol: TCP
+      name: tracing
+
+# Resource limits and requests
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Pod affinity rules for high availability
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - monitoring-service
+          topologyKey: kubernetes.io/hostname
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Metrics collection configuration
+metrics:
+  enabled: true
+  # Prometheus configuration
+  prometheus:
+    scrapeInterval: "15s"
+    evaluationInterval: "30s"
+    scrapeTimeout: "10s"
+    retention:
+      time: "15d"
+      size: "50GB"
+    # Recording rules configuration
+    recordingRules:
+      enabled: true
+      interval: "1m"
+    # Alert rules configuration
+    alertRules:
+      enabled: true
+      groupWait: "30s"
+      groupInterval: "5m"
+      repeatInterval: "4h"
+
+# Distributed tracing configuration
+tracing:
+  enabled: true
+  # Jaeger configuration
+  jaeger:
+    agent:
+      host: jaeger-agent
+      port: 6831
+    collector:
+      endpoint: "http://jaeger-collector:14268/api/traces"
+    sampler:
+      type: probabilistic
+      param: 0.1
+    reporter:
+      queueSize: 1000
+      batchSize: 100
+      batchTimeout: "1s"
+      maxBacklog: 10000
+
+# Health check configuration
+healthCheck:
+  # Liveness probe
+  livenessProbe:
+    enabled: true
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+    successThreshold: 1
+    path: /health
+  # Readiness probe
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+    successThreshold: 1
+    path: /health
+
+# Service monitor configuration for Prometheus Operator
+serviceMonitor:
+  enabled: true
+  interval: "15s"
+  scrapeTimeout: "10s"
+  namespace: monitoring
+  labels:
+    release: prometheus
+
+# Ingress configuration
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations: {}
+  hosts: []
+  tls: []
+
+# Configuration for persistent storage
+persistence:
+  enabled: true
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 10Gi
+
+# Log configuration
+logging:
+  level: info
+  format: json
+  output: stdout
+
+# Network policy
+networkPolicy:
+  enabled: true
+  ingressRules:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+        - podSelector:
+            matchLabels:
+              app: prometheus
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+        - podSelector:
+            matchLabels:
+              app: grafana
+
+# Pod disruption budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
