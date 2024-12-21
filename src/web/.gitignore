@@ -1,0 +1,106 @@
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Build outputs
+dist
+build
+.next
+out
+*.tsbuildinfo
+
+# Testing artifacts
+coverage
+cypress/videos
+cypress/screenshots
+.nyc_output
+__snapshots__
+*.snap
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+.npmrc
+.yarnrc
+*.secret
+
+# Logs and debugging
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+debug.log
+lerna-debug.log*
+
+# IDE and Editor
+.idea
+.vscode
+*.swp
+*.swo
+.history
+*.sublime-workspace
+*.sublime-project
+.project
+.settings
+.classpath
+
+# System files
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+$RECYCLE.BIN/
+
+# Local overrides
+*.local
+*.local.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Cache directories
+.cache
+.eslintcache
+.stylelintcache
+.parcel-cache
+.next/cache
+.nuxt
+.vuepress/cache
+
+# Temporary files
+*.tmp
+*.temp
+.temp
+.tmp
+*.bak
+
+# Generated files
+stats.json
+bundle-stats.json
+storybook-static
+.docz
+public/sitemap*.xml
+public/robots.txt
+
+# Package manager specific
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+.pnp.*
+
+# Misc
+*.pid
+*.seed
+*.pid.lock
+.vercel
+.now
+.env.me
