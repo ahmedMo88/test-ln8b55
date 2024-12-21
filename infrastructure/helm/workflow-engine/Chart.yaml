@@ -1,0 +1,56 @@
+apiVersion: v2
+name: workflow-engine
+description: Enterprise-grade workflow orchestration engine supporting high availability, horizontal scaling, and automated process execution with 99.9% uptime SLA. Provides robust process automation capabilities with sub-5-second response times through distributed architecture and redundancy.
+
+# Chart version using semantic versioning
+version: 1.0.0
+
+# Application version this chart deploys
+appVersion: "1.0.0"
+
+# Chart type for Kubernetes deployment
+type: application
+
+# Keywords for chart discovery and categorization
+keywords:
+  - workflow
+  - automation
+  - orchestration
+  - process-engine
+  - high-availability
+  - enterprise
+  - scalable
+  - golang
+  - kubernetes
+
+# Chart maintainers and contact information
+maintainers:
+  - name: Platform Engineering Team
+    email: platform-engineering@company.com
+  - name: SRE Team
+    email: sre@company.com
+
+# Chart annotations for additional metadata
+annotations:
+  category: Application
+  licenses: Apache-2.0
+  support: Enterprise
+
+# Required chart dependencies
+dependencies:
+  - name: postgresql
+    version: "12.5.3"
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql.enabled
+  - name: redis
+    version: "17.11.3"
+    repository: https://charts.bitnami.com/bitnami
+    condition: redis.enabled
+  - name: prometheus
+    version: "19.7.2"
+    repository: https://prometheus-community.github.io/helm-charts
+    condition: monitoring.enabled
+  - name: grafana
+    version: "6.57.3"
+    repository: https://grafana.github.io/helm-charts
+    condition: monitoring.enabled
