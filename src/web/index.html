@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Character encoding -->
+    <meta charset="UTF-8">
+
+    <!-- Security headers -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'nonce-${CSP_NONCE}'; style-src 'self' 'unsafe-inline' fonts.googleapis.com; font-src fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' ws: wss: *.analytics.com; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests;">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+    <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=()">
+    <meta http-equiv="Strict-Transport-Security" content="max-age=31536000; includeSubDomains; preload">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Viewport configuration -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+    <!-- Theme configuration -->
+    <meta name="theme-color" content="#2196F3" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#1976D2" media="(prefers-color-scheme: dark)">
+
+    <!-- Application metadata -->
+    <meta name="description" content="Enterprise-grade no-code/low-code workflow automation platform">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+    <!-- Resource preconnect hints -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <!-- PWA manifest and icons -->
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- Primary font with display swap -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;600;700&display=swap">
+    
+    <!-- Material Icons font -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons&display=swap">
+
+    <title>Workflow Automation Platform</title>
+
+    <!-- Initial state injection point -->
+    <script nonce="${CSP_NONCE}">
+        window.__INITIAL_STATE__ = {};
+    </script>
+</head>
+<body>
+    <!-- Skip navigation for accessibility -->
+    <a href="#main" class="skip-nav" id="skip-nav">
+        Skip to main content
+    </a>
+
+    <!-- Application root with ARIA attributes -->
+    <div id="root" role="application" aria-label="Workflow Automation Platform"></div>
+
+    <!-- Notification live region for accessibility -->
+    <div id="notification-live-region" role="alert" aria-live="polite" aria-atomic="true"></div>
+
+    <!-- Fallback for JavaScript disabled browsers -->
+    <noscript>
+        <div style="padding: 20px; text-align: center;">
+            <h1>JavaScript Required</h1>
+            <p>This application requires JavaScript to be enabled in your browser.</p>
+        </div>
+    </noscript>
+
+    <!-- Main application script with defer loading -->
+    <script type="module" src="/src/index.tsx" nonce="${CSP_NONCE}" defer></script>
+</body>
+</html>
