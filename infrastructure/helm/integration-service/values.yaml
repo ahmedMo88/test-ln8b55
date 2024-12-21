@@ -1,0 +1,153 @@
+# Integration Service Helm Chart Values
+# Version: 1.0.0
+# Purpose: Configuration for the Integration Hub deployment managing external service connections
+
+# Replica configuration for high availability
+replicaCount: 3
+
+# Container image configuration
+image:
+  repository: workflow-platform/integration-service
+  tag: "1.0.0"  # node:20-alpine base image
+  pullPolicy: IfNotPresent
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 3002
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "3002"
+
+# Resource allocation
+resources:
+  requests:
+    cpu: "500m"
+    memory: "512Mi"
+  limits:
+    cpu: "2000m"
+    memory: "1Gi"
+
+# Horizontal Pod Autoscaling
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+# Integration service configurations
+integrations:
+  email:
+    rateLimit:
+      requestsPerMinute: 100
+      burstSize: 20
+      retryAfter: 60
+    settings:
+      timeout: 30000  # 30 seconds
+      retryAttempts: 3
+      maxFileSize: 25000000  # 25MB
+
+  cloudStorage:
+    rateLimit:
+      requestsPerMinute: 1000
+      burstSize: 100
+      retryAfter: 60
+    settings:
+      timeout: 60000  # 60 seconds
+      retryAttempts: 3
+      maxFileSize: 100000000  # 100MB
+
+  projectManagement:
+    rateLimit:
+      requestsPerMinute: 500
+      burstSize: 50
+      retryAfter: 60
+    settings:
+      timeout: 45000  # 45 seconds
+      retryAttempts: 3
+      maxPayloadSize: 5000000  # 5MB
+
+  communication:
+    rateLimit:
+      requestsPerMinute: 200
+      burstSize: 40
+      retryAfter: 60
+    settings:
+      timeout: 20000  # 20 seconds
+      retryAttempts: 3
+      maxMessageSize: 1000000  # 1MB
+
+# Monitoring configuration
+monitoring:
+  enabled: true
+  path: "/metrics"
+  port: 3002
+  scrapeInterval: 30  # seconds
+
+# Health check probe configuration
+probes:
+  liveness:
+    path: /health
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    successThreshold: 1
+    failureThreshold: 3
+  readiness:
+    path: /ready
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    successThreshold: 1
+    failureThreshold: 3
+
+# Security context for running as non-root
+securityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+
+# Pod anti-affinity for high availability
+podAntiAffinity:
+  enabled: true
+  type: "preferred"
+  weight: 100
+
+# Node affinity for optimized placement
+nodeAffinity:
+  enabled: false
+  requiredDuringSchedulingIgnoredDuringExecution: []
+  preferredDuringSchedulingIgnoredDuringExecution: []
+
+# Pod disruption budget for availability
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+# Service account configuration
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# Pod annotations
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "3002"
+  prometheus.io/path: "/metrics"
+
+# Additional environment variables
+env:
+  NODE_ENV: "production"
+  LOG_LEVEL: "info"
+  API_TIMEOUT: "30000"
+
+# Volume configuration
+persistence:
+  enabled: true
+  size: "10Gi"
+  storageClass: "standard"
+  accessMode: ReadWriteOnce
