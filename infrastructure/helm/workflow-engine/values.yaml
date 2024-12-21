@@ -1,0 +1,157 @@
+# Default values for workflow-engine Helm chart
+# This is a YAML-formatted file.
+
+# Number of workflow engine replicas to run
+replicaCount: 3
+
+image:
+  repository: workflow-engine
+  tag: latest
+  pullPolicy: IfNotPresent
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/workflow-engine-role
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+# Pod annotations for Prometheus metrics scraping
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "9090"
+  prometheus.io/path: "/metrics"
+
+# Security context for the pod
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+# Security context for the container
+securityContext:
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 3003
+  metrics:
+    port: 9090
+    name: metrics
+
+# Resource requests and limits
+resources:
+  requests:
+    cpu: 500m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+# Horizontal Pod Autoscaling configuration
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Pods
+        value: 1
+        periodSeconds: 60
+
+# Node selector configuration
+nodeSelector:
+  kubernetes.io/arch: amd64
+  kubernetes.io/os: linux
+
+# Tolerations for node scheduling
+tolerations:
+- key: node-role.kubernetes.io/master
+  effect: NoSchedule
+
+# Pod anti-affinity for high availability
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: app.kubernetes.io/name
+            operator: In
+            values:
+            - workflow-engine
+        topologyKey: kubernetes.io/hostname
+
+# Environment variables for the workflow engine
+env:
+  GO_ENV: production
+  PORT: "3003"
+  # Database configuration
+  DB_HOST: postgres-postgresql
+  DB_PORT: "5432"
+  DB_NAME: workflow_engine
+  DB_MAX_CONNS: "25"
+  DB_IDLE_CONNS: "5"
+  DB_CONN_TIMEOUT: "30s"
+  # Engine configuration
+  ENGINE_MAX_CONCURRENT: "100"
+  ENGINE_EXEC_TIMEOUT: "300s"
+  ENGINE_NODE_TIMEOUT: "60s"
+  ENGINE_ENABLE_RETRIES: "true"
+  ENGINE_MAX_RETRIES: "3"
+  # Metrics and tracing
+  METRICS_ADDRESS: ":9090"
+  ENABLE_TRACING: "true"
+  TRACING_ENDPOINT: "jaeger-agent:6831"
+  METRICS_INTERVAL: "15s"
+
+# Liveness probe configuration
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  successThreshold: 1
+  failureThreshold: 3
+
+# Readiness probe configuration
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 3
+  successThreshold: 1
+  failureThreshold: 3
+
+# Startup probe configuration
+startupProbe:
+  httpGet:
+    path: /ready
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 3
+  successThreshold: 1
+  failureThreshold: 30
