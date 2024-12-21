@@ -1,0 +1,166 @@
+# Workflow Engine Deployment Manifest
+# Version: v1
+# Platform: Kubernetes 1.28+
+# Service: Core workflow orchestration engine
+# Dependencies: workflow-platform-config, workflow-platform-secrets
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workflow-engine
+  namespace: workflow-platform
+  labels:
+    app: workflow-platform
+    service: workflow-engine
+    environment: production
+    version: v1
+    tier: backend
+spec:
+  # High availability configuration with 3 replicas
+  replicas: 3
+  
+  # Zero-downtime deployment strategy
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  
+  # Pod selector for the deployment
+  selector:
+    matchLabels:
+      app: workflow-platform
+      service: workflow-engine
+  
+  template:
+    metadata:
+      labels:
+        app: workflow-platform
+        service: workflow-engine
+        version: v1
+        tier: backend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3003"
+        prometheus.io/path: "/metrics"
+    
+    spec:
+      # Pod distribution and scheduling rules
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  service: workflow-engine
+              topologyKey: kubernetes.io/hostname
+      
+      # Container specifications
+      containers:
+      - name: workflow-engine
+        image: workflow-engine:latest
+        imagePullPolicy: Always
+        
+        # Container ports
+        ports:
+        - name: http
+          containerPort: 3003
+          protocol: TCP
+        - name: metrics
+          containerPort: 9090
+          protocol: TCP
+        
+        # Resource allocation
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "512Mi"
+          limits:
+            cpu: "1000m"
+            memory: "1Gi"
+        
+        # Environment configuration
+        env:
+        - name: PORT
+          valueFrom:
+            configMapKeyRef:
+              name: workflow-platform-config
+              key: workflow_engine.PORT
+        - name: GO_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: workflow-platform-config
+              key: workflow_engine.GO_ENV
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: workflow-platform-secrets
+              key: DB_PASSWORD
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: workflow-platform-secrets
+              key: REDIS_PASSWORD
+        
+        # Health checks
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 3
+        
+        startupProbe:
+          httpGet:
+            path: /startup
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          failureThreshold: 30
+        
+        # Security context for container
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        
+        # Volume mounts for temporary data
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        
+      # Pod-level security context
+      securityContext:
+        fsGroup: 1000
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      
+      # Volumes definition
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      
+      # Graceful shutdown period
+      terminationGracePeriodSeconds: 60
+      
+      # Service account for pod
+      serviceAccountName: workflow-engine-sa
