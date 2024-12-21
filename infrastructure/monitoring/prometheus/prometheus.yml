@@ -1,0 +1,137 @@
+# Prometheus Configuration
+# Version: 2.47.0
+# Purpose: Main configuration file for monitoring system with comprehensive service discovery and alerting
+
+# Global configuration
+global:
+  scrape_interval: 15s      # Default scrape interval for all jobs
+  evaluation_interval: 30s  # Interval for evaluating rules
+  scrape_timeout: 10s      # Timeout for scrape requests
+  external_labels:
+    environment: production
+    region: primary
+
+# Rule files containing alerting and recording rules
+rule_files:
+  - "rules/alerts.yml"     # Alert definitions for system monitoring
+  - "rules/recording.yml"  # Pre-computed metrics and aggregations
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - "alertmanager:9093"
+      scheme: http
+      timeout: 10s
+      api_version: v2
+
+# Scrape configurations for services
+scrape_configs:
+  # Workflow Engine monitoring
+  - job_name: 'workflow-engine'
+    metrics_path: '/metrics'
+    scheme: http
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    static_configs:
+      - targets: ['workflow-engine:8080']
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        target_label: app
+      - source_labels: [__meta_kubernetes_pod_label_component]
+        target_label: component
+
+  # AI Service monitoring
+  - job_name: 'ai-service'
+    metrics_path: '/metrics'
+    scheme: http
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    static_configs:
+      - targets: ['ai-service:8080']
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'ai_.*'
+        action: keep
+
+  # Integration Service monitoring
+  - job_name: 'integration-service'
+    metrics_path: '/metrics'
+    scheme: http
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    static_configs:
+      - targets: ['integration-service:8080']
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'integration_.*'
+        action: keep
+
+  # API Gateway monitoring
+  - job_name: 'api-gateway'
+    metrics_path: '/metrics'
+    scheme: http
+    scrape_interval: 10s  # More frequent for API monitoring
+    scrape_timeout: 5s
+    static_configs:
+      - targets: ['api-gateway:8080']
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'api_.*'
+        action: keep
+
+  # Auth Service monitoring
+  - job_name: 'auth-service'
+    metrics_path: '/metrics'
+    scheme: http
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    static_configs:
+      - targets: ['auth-service:8080']
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'auth_.*'
+        action: keep
+
+  # Node Exporter for system metrics
+  - job_name: 'node'
+    metrics_path: '/metrics'
+    scheme: http
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+# Storage configuration
+storage:
+  tsdb:
+    retention_time: 15d    # 15 days retention for metrics
+    retention_size: 50GB   # Maximum storage size
+    wal:
+      retention_time: 12h  # WAL retention time
+    out_of_order_time_window: 10m  # Allow slight out of order samples
+
+# Remote write configuration for long-term storage
+remote_write:
+  - url: "http://thanos-receive:19291/api/v1/receive"
+    remote_timeout: 30s
+    queue_config:
+      capacity: 10000
+      max_shards: 200
+      max_samples_per_send: 500
+      batch_send_deadline: 5s
+      min_backoff: 30ms
+      max_backoff: 5s
+
+# Security configuration
+tls_config:
+  cert_file: /etc/prometheus/certs/prometheus.crt
+  key_file: /etc/prometheus/certs/prometheus.key
+  min_version: TLS12
+
+# Web interface configuration
+web:
+  enable_lifecycle: true
+  enable_admin_api: false
+  page_title: "Workflow Automation Platform Monitoring"
+  external_url: "https://monitoring.workflow-platform.com"
