@@ -1,0 +1,138 @@
+# Helm Chart Version: 3.0.0
+# Purpose: Kubernetes deployment manifest for Integration Service
+# Component: Integration Hub - Manages external service connections with 40+ pre-built connectors
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-integration-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: integration-service
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+    component: integration-hub
+    tier: backend
+
+spec:
+  # Configure horizontal scaling
+  replicas: {{ .Values.replicaCount }}
+  
+  # Define update strategy for zero-downtime deployments
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  
+  # Pod selector for the deployment
+  selector:
+    matchLabels:
+      app: integration-service
+      release: {{ .Release.Name }}
+  
+  template:
+    metadata:
+      labels:
+        app: integration-service
+        release: {{ .Release.Name }}
+        component: integration-hub
+        tier: backend
+      annotations:
+        # Prometheus monitoring configuration
+        prometheus.io/scrape: "{{ .Values.monitoring.enabled }}"
+        prometheus.io/path: "{{ .Values.monitoring.path }}"
+        prometheus.io/port: "{{ .Values.monitoring.port }}"
+        # Config checksum for automatic pod restarts on config changes
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    
+    spec:
+      # Security context for running as non-root
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      
+      # Pod anti-affinity for high availability
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - integration-service
+              topologyKey: kubernetes.io/hostname
+      
+      containers:
+      - name: integration-service
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        
+        # Container ports
+        ports:
+        - name: http
+          containerPort: 3002
+          protocol: TCP
+        - name: metrics
+          containerPort: 9090
+          protocol: TCP
+        
+        # Resource requests and limits
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}
+        
+        # Health checks
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.probes.liveness.path }}
+            port: http
+          initialDelaySeconds: {{ .Values.probes.liveness.initialDelaySeconds }}
+          periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
+          timeoutSeconds: {{ .Values.probes.liveness.timeoutSeconds }}
+          successThreshold: 1
+          failureThreshold: 3
+        
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.probes.readiness.path }}
+            port: http
+          initialDelaySeconds: {{ .Values.probes.readiness.initialDelaySeconds }}
+          periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
+          timeoutSeconds: {{ .Values.probes.readiness.timeoutSeconds }}
+          successThreshold: 1
+          failureThreshold: 3
+        
+        # Environment configuration
+        env:
+        - name: NODE_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: workflow-platform-config
+              key: integration_service.NODE_ENV
+        - name: PORT
+          valueFrom:
+            configMapKeyRef:
+              name: workflow-platform-config
+              key: integration_service.PORT
+        
+        # Volume mounts
+        volumeMounts:
+        - name: integration-config
+          mountPath: /app/config
+          readOnly: true
+        - name: integration-data
+          mountPath: /app/data
+      
+      # Volumes
+      volumes:
+      - name: integration-config
+        configMap:
+          name: workflow-platform-config
+      - name: integration-data
+        persistentVolumeClaim:
+          claimName: {{ .Release.Name }}-integration-data
