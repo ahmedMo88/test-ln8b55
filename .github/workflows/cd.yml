@@ -1,0 +1,237 @@
+# Workflow Automation Platform CD v1.0.0
+# Continuous Deployment workflow with canary deployment strategy and advanced monitoring
+# External Dependencies:
+# - actions/checkout@v4
+# - aws-actions/configure-aws-credentials@v4
+# - aws-actions/amazon-ecr-login@v1
+# - helm/kind-action@v1.8.0
+# - azure/setup-helm@v3
+# - datadog/action-datadog-monitor@v1
+
+name: Workflow Automation Platform CD
+
+on:
+  workflow_run:
+    workflows: ["CI", "Security Scan"]
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        description: 'Deployment Environment'
+        options:
+          - staging
+          - production
+        required: true
+      version:
+        type: string
+        description: 'Release Version'
+        required: true
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  EKS_CLUSTER_NAME: ${{ secrets.EKS_CLUSTER_NAME }}
+  ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+  DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY }}
+
+jobs:
+  prepare-deployment:
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.set-env.outputs.environment }}
+    steps:
+      - name: Set deployment environment
+        id: set-env
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+          else
+            echo "environment=staging" >> $GITHUB_OUTPUT
+          fi
+
+  deploy-staging:
+    needs: prepare-deployment
+    if: needs.prepare-deployment.outputs.environment == 'staging'
+    runs-on: ubuntu-latest
+    environment: staging
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
+      
+      - name: Setup Kubernetes tools
+        uses: helm/kind-action@v1.8.0
+        
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+      
+      - name: Backup staging database
+        run: |
+          aws rds create-db-snapshot \
+            --db-instance-identifier staging-db \
+            --db-snapshot-identifier staging-backup-${{ github.sha }}
+      
+      - name: Deploy to staging
+        run: |
+          helm upgrade --install workflow-automation ./infrastructure/helm \
+            --namespace staging \
+            --set image.tag=${{ github.sha }} \
+            --set replicaCount=2 \
+            --set rollingUpdate.maxSurge=25% \
+            --set rollingUpdate.maxUnavailable=25% \
+            --timeout 10m
+      
+      - name: Configure monitoring
+        uses: datadog/action-datadog-monitor@v1
+        with:
+          api_key: ${{ env.DATADOG_API_KEY }}
+          monitor_name: "Staging Deployment Monitor"
+          monitor_query: |
+            avg(last_5m):avg:workflow_automation.response_time{env:staging} > 5
+          monitor_options: |
+            {
+              "notify_no_data": true,
+              "renotify_interval": 10,
+              "timeout_h": 0,
+              "evaluation_delay": 60
+            }
+      
+      - name: Run integration tests
+        run: |
+          kubectl -n staging port-forward svc/workflow-automation 8080:8080 &
+          sleep 30
+          curl -f http://localhost:8080/health || exit 1
+      
+      - name: Verify deployment health
+        run: |
+          kubectl -n staging rollout status deployment/workflow-automation
+
+  deploy-production:
+    needs: prepare-deployment
+    if: needs.prepare-deployment.outputs.environment == 'production'
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
+      
+      - name: Setup Kubernetes tools
+        uses: helm/kind-action@v1.8.0
+        
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+      
+      - name: Backup production database
+        run: |
+          aws rds create-db-snapshot \
+            --db-instance-identifier production-db \
+            --db-snapshot-identifier prod-backup-${{ github.sha }}
+      
+      - name: Initialize canary deployment (20%)
+        run: |
+          helm upgrade --install workflow-automation ./infrastructure/helm \
+            --namespace production \
+            --set image.tag=${{ github.sha }} \
+            --set canary.enabled=true \
+            --set canary.weight=20 \
+            --timeout 15m
+      
+      - name: Monitor canary metrics
+        uses: datadog/action-datadog-monitor@v1
+        with:
+          api_key: ${{ env.DATADOG_API_KEY }}
+          monitor_name: "Production Canary Monitor"
+          monitor_query: |
+            avg(last_5m):avg:workflow_automation.error_rate{deployment:canary} > 1 OR
+            avg(last_5m):avg:workflow_automation.response_time{deployment:canary} > 5 OR
+            avg(last_5m):avg:workflow_automation.cpu_usage{deployment:canary} > 80
+      
+      - name: Increase canary traffic (50%)
+        if: success()
+        run: |
+          helm upgrade workflow-automation ./infrastructure/helm \
+            --namespace production \
+            --set canary.weight=50 \
+            --reuse-values
+      
+      - name: Complete rollout (100%)
+        if: success()
+        run: |
+          helm upgrade workflow-automation ./infrastructure/helm \
+            --namespace production \
+            --set canary.weight=100 \
+            --reuse-values
+      
+      - name: Verify deployment success
+        run: |
+          kubectl -n production rollout status deployment/workflow-automation
+      
+      - name: Configure production monitoring
+        uses: datadog/action-datadog-monitor@v1
+        with:
+          api_key: ${{ env.DATADOG_API_KEY }}
+          monitor_name: "Production Health Monitor"
+          monitor_query: |
+            avg(last_5m):avg:workflow_automation.error_rate{env:production} > 1 OR
+            avg(last_5m):avg:workflow_automation.response_time{env:production} > 5 OR
+            avg(last_5m):avg:workflow_automation.cpu_usage{env:production} > 80 OR
+            avg(last_5m):avg:workflow_automation.memory_usage{env:production} > 80
+          monitor_options: |
+            {
+              "notify_no_data": true,
+              "renotify_interval": 5,
+              "timeout_h": 0,
+              "evaluation_delay": 30
+            }
+
+  rollback:
+    needs: [prepare-deployment, deploy-staging, deploy-production]
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Setup Kubernetes tools
+        uses: helm/kind-action@v1.8.0
+        
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+      
+      - name: Rollback deployment
+        run: |
+          ENVIRONMENT=${{ needs.prepare-deployment.outputs.environment }}
+          helm rollback workflow-automation 0 -n $ENVIRONMENT
+      
+      - name: Notify rollback
+        if: always()
+        run: |
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+            -H 'Content-Type: application/json' \
+            -d '{"text":"⚠️ Deployment rollback initiated for ${{ needs.prepare-deployment.outputs.environment }}"}'
