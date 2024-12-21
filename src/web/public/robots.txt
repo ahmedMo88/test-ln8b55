@@ -1,0 +1,59 @@
+# Workflow Automation Platform Robots.txt
+# Version: 1.0
+# Last Updated: 2023
+# Standards: RFC 9309, Google Robots.txt Specification
+
+# Default rules for all crawlers
+User-agent: *
+# Allow public pages
+Allow: /
+Allow: /login
+Allow: /register
+Allow: /workflows
+Allow: /integrations
+Allow: /docs
+Allow: /about
+Allow: /contact
+Allow: /pricing
+Allow: /features
+Allow: /support
+
+# Protect sensitive routes and API endpoints
+Disallow: /api/
+Disallow: /admin/
+Disallow: /settings/
+Disallow: /profile/
+Disallow: /workflow/editor/
+Disallow: /workflow/preview/
+Disallow: /integration/config/
+Disallow: /user/
+Disallow: /dashboard/
+Disallow: /analytics/
+Disallow: /auth/
+
+# Google-specific crawler rules
+User-agent: Googlebot
+Crawl-delay: 1
+# Control snapshot frequency
+Request-rate: 1/1s
+# Additional Google directives
+Disallow: /*?*
+Disallow: /*&*
+
+# Bing-specific crawler rules
+User-agent: Bingbot
+Crawl-delay: 2
+Request-rate: 1/2s
+Disallow: /*?*
+Disallow: /*&*
+
+# Sitemap reference
+Sitemap: https://example.com/sitemap.xml
+
+# Additional security measures
+Disallow: /*.json$
+Disallow: /*.xml$
+Disallow: /*/config
+Disallow: /*/settings
+Disallow: /*/private
+Disallow: /*/internal
