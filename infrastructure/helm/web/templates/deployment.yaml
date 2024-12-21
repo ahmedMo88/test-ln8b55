@@ -1,0 +1,145 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "web.fullname" . }}
+  labels:
+    {{- include "web.labels" . | nindent 4 }}
+  annotations:
+    # Prometheus scraping configuration
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "metrics"
+    # Config checksum to trigger pod rollout on config changes
+    checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+spec:
+  # Replicas from values.yaml
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "web.selectorLabels" . | nindent 6 }}
+  # Zero-downtime deployment strategy
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        {{- include "web.selectorLabels" . | nindent 8 }}
+      annotations:
+        # Network optimization sysctls
+        security.alpha.kubernetes.io/sysctls: net.ipv4.tcp_syncookies=1,net.ipv4.tcp_max_syn_backlog=8192
+        security.alpha.kubernetes.io/unsafe-sysctls: none
+    spec:
+      # Enhanced pod security context
+      securityContext:
+        runAsUser: 101  # nginx user
+        runAsGroup: 101
+        fsGroup: 101
+        runAsNonRoot: true
+        readOnlyRootFilesystem: true
+        seccompProfile:
+          type: RuntimeDefault
+
+      # Init container to set required permissions
+      initContainers:
+        - name: init-nginx
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+          command:
+            - sh
+            - -c
+            - chmod -R 777 /var/cache/nginx /var/run
+          securityContext:
+            runAsUser: 0  # Temporarily run as root for chmod
+            runAsNonRoot: false
+
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          # Enhanced container security context
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          
+          ports:
+            - containerPort: 80
+              protocol: TCP
+            - name: metrics
+              containerPort: 9113
+              protocol: TCP
+
+          # Resource limits and requests
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+
+          # Health checking
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 30
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
+
+          # Volume mounts for nginx requirements
+          volumeMounts:
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+            - name: nginx-pid
+              mountPath: /var/run
+            - name: tmp
+              mountPath: /tmp
+
+      # Required volumes with size limits
+      volumes:
+        - name: nginx-cache
+          emptyDir:
+            sizeLimit: 256Mi
+        - name: nginx-pid
+          emptyDir:
+            sizeLimit: 64Mi
+        - name: tmp
+          emptyDir:
+            sizeLimit: 128Mi
+
+      # Pod anti-affinity for high availability
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    {{- include "web.selectorLabels" . | nindent 20 }}
+                topologyKey: kubernetes.io/hostname
+
+      # Node selection and tolerations
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
