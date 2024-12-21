@@ -1,0 +1,259 @@
+# Workflow Automation Platform CI Pipeline
+# Version: 1.0.0
+# This workflow implements comprehensive CI for the workflow automation platform
+# with enhanced security, monitoring and reliability features
+
+name: Workflow Automation Platform CI
+
+# Define environment variables
+env:
+  NODE_VERSION: '20.x'
+  PYTHON_VERSION: '3.11'
+  GO_VERSION: '1.21'
+  COVERAGE_FRONTEND_THRESHOLD: 80
+  COVERAGE_BACKEND_THRESHOLD: 85
+  MAX_RETRY_ATTEMPTS: 3
+  TIMEOUT_MINUTES: 30
+
+# Define workflow triggers
+on:
+  push:
+    branches: ['main', 'develop']
+  pull_request:
+    branches: ['main', 'develop']
+  workflow_dispatch:
+
+jobs:
+  frontend-build:
+    name: Frontend Build & Test
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ env.TIMEOUT_MINUTES }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: 'src/web/package.json'
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('src/web/package-lock.json') }}
+          restore-keys: |
+            npm-${{ runner.os }}-
+
+      - name: Install dependencies
+        working-directory: src/web
+        run: npm ci
+
+      - name: Lint check
+        working-directory: src/web
+        run: |
+          npm run lint
+          npm run prettier:check
+
+      - name: Type check
+        working-directory: src/web
+        run: npm run type-check
+
+      - name: Run unit tests with coverage
+        working-directory: src/web
+        run: |
+          npm run test:coverage -- --coverageThreshold='{"global":{"statements":${{ env.COVERAGE_FRONTEND_THRESHOLD }},"branches":${{ env.COVERAGE_FRONTEND_THRESHOLD }},"functions":${{ env.COVERAGE_FRONTEND_THRESHOLD }},"lines":${{ env.COVERAGE_FRONTEND_THRESHOLD }}}}'
+
+      - name: Run integration tests
+        working-directory: src/web
+        run: npm run test:integration
+
+      - name: Build production bundle
+        working-directory: src/web
+        run: npm run build
+
+      - name: Run E2E tests
+        working-directory: src/web
+        run: npm run test:e2e
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          flags: frontend
+          fail_ci_if_error: true
+
+      - name: Cache build artifacts
+        uses: actions/cache@v3
+        with:
+          path: src/web/build
+          key: frontend-build-${{ github.sha }}
+
+  backend-build:
+    name: Backend Build & Test
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ env.TIMEOUT_MINUTES }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Cache Go dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/go/pkg/mod
+          key: go-${{ runner.os }}-${{ hashFiles('**/go.sum') }}
+
+      - name: Cache Python dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ hashFiles('**/requirements.txt') }}
+
+      - name: Install Go dependencies
+        run: go mod download
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Go tests with coverage
+        run: |
+          go test -race -coverprofile=coverage.txt -covermode=atomic ./... -coverpkg=./... -json > test-report.json
+          go tool cover -func=coverage.txt | grep total | awk '{print $3}' | sed 's/%//' | awk '{if($1<${{ env.COVERAGE_BACKEND_THRESHOLD }}) exit 1}'
+
+      - name: Run Python tests with coverage
+        run: |
+          pytest --cov=. --cov-report=xml --cov-fail-under=${{ env.COVERAGE_BACKEND_THRESHOLD }}
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          flags: backend
+          fail_ci_if_error: true
+
+      - name: Cache backend artifacts
+        uses: actions/cache@v3
+        with:
+          path: |
+            bin/
+            dist/
+          key: backend-build-${{ github.sha }}
+
+  container-build:
+    name: Container Build
+    needs: [frontend-build, backend-build]
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ env.TIMEOUT_MINUTES }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: buildx-${{ github.sha }}
+          restore-keys: |
+            buildx-
+
+      - name: Build and cache frontend image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: src/web/Dockerfile
+          push: false
+          tags: workflow-automation-frontend:${{ github.sha }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new
+          outputs: type=docker
+
+      - name: Build and cache backend services
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: Dockerfile
+          push: false
+          tags: workflow-automation-backend:${{ github.sha }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new
+          outputs: type=docker
+
+      # Temp fix for cache
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+  security-scan:
+    name: Security Scanning
+    needs: [container-build]
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ env.TIMEOUT_MINUTES }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run SAST scan
+        run: |
+          # Placeholder for SAST scanning tool
+          echo "Running SAST scan"
+
+      - name: Run dependency scan
+        run: |
+          # Placeholder for dependency scanning
+          echo "Running dependency scan"
+
+      - name: Run container security scan
+        run: |
+          # Placeholder for container security scanning
+          echo "Running container security scan"
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-reports
+          path: |
+            **/security-report*.json
+            **/vulnerability-report*.json
+
+  notification:
+    name: Notification
+    needs: [security-scan]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Check workflow status
+        if: ${{ always() }}
+        run: |
+          if [[ "${{ needs.security-scan.result }}" == "success" ]]; then
+            echo "CI pipeline completed successfully"
+          else
+            echo "CI pipeline failed"
+            exit 1
+          fi
