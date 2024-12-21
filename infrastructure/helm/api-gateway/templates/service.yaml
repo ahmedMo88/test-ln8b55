@@ -1,0 +1,69 @@
+{{/* Service template for API Gateway */}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "api-gateway.fullname" . }}
+  labels:
+    {{- include "api-gateway.labels" . | nindent 4 }}
+  annotations:
+    # Prometheus monitoring annotations
+    prometheus.io/scrape: "{{ .Values.monitoring.enabled }}"
+    prometheus.io/port: "{{ .Values.monitoring.serviceMonitor.port }}"
+    prometheus.io/path: "{{ .Values.monitoring.serviceMonitor.path }}"
+    # Service annotations for enhanced networking
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+    service.beta.kubernetes.io/aws-load-balancer-connection-draining-enabled: "true"
+    service.beta.kubernetes.io/aws-load-balancer-connection-draining-timeout: "60"
+
+spec:
+  # Service type from values
+  type: {{ .Values.service.type }}
+  
+  # Session affinity configuration for consistent routing
+  sessionAffinity: {{ .Values.service.sessionAffinity | default "ClientIP" }}
+  {{- if eq .Values.service.sessionAffinity "ClientIP" }}
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: {{ .Values.service.sessionAffinityTimeout | default 10800 }}
+  {{- end }}
+  
+  # Port configurations for main traffic and metrics
+  ports:
+    # Main application port
+    - port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.targetPort }}
+      protocol: {{ .Values.service.protocol | default "TCP" }}
+      name: http
+    
+    # Metrics port for monitoring
+    {{- if .Values.monitoring.enabled }}
+    - port: {{ .Values.monitoring.serviceMonitor.port }}
+      targetPort: metrics
+      protocol: TCP
+      name: metrics
+    {{- end }}
+  
+  # Selector to match pods from deployment
+  selector:
+    {{- include "api-gateway.selectorLabels" . | nindent 4 }}
+  
+  # Advanced networking configurations
+  publishNotReadyAddresses: false
+  
+  # Topology spread configuration for high availability
+  topologyKeys:
+    - "kubernetes.io/hostname"
+    - "topology.kubernetes.io/zone"
+    - "topology.kubernetes.io/region"
+    - "*"
+  
+  # External traffic policy for better routing
+  {{- if eq .Values.service.type "LoadBalancer" }}
+  externalTrafficPolicy: Local
+  {{- end }}
+  
+  # Health check configuration
+  {{- if eq .Values.service.type "LoadBalancer" }}
+  healthCheckNodePort: {{ .Values.service.healthCheckNodePort | default 0 }}
+  {{- end }}
