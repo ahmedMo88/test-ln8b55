@@ -1,0 +1,43 @@
+# API Gateway Helm Chart
+# Version: 1.0.0
+# Provides enterprise-grade API management with security, monitoring and high availability
+
+apiVersion: v2
+name: api-gateway
+description: Enterprise-grade API Gateway service for the workflow automation platform providing centralized routing, security (OAuth2, JWT), rate limiting, monitoring, and high availability features
+type: application
+version: 1.0.0
+appVersion: 1.0.0
+
+# Kubernetes version compatibility
+kubeVersion: ">= 1.28.0"
+
+# Chart keywords for search and categorization
+keywords:
+  - api-gateway
+  - workflow-automation
+  - microservices
+  - oauth2
+  - rate-limiting
+  - security
+  - monitoring
+
+# Chart maintainers
+maintainers:
+  - name: Platform Team
+    email: platform@workflow-automation.com
+
+# Chart dependencies
+dependencies:
+  - name: common
+    version: 1.x.x
+    repository: file://../common
+    condition: common.enabled
+
+# Chart annotations for metadata and capabilities
+annotations:
+  category: Infrastructure
+  security.workflow-automation.com/compliance: SOC2,HIPAA
+  monitoring.workflow-automation.com/metrics: enabled
+  scaling.workflow-automation.com/type: horizontal
+  networking.workflow-automation.com/ingress: enabled
