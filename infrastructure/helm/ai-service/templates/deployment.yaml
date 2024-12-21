@@ -1,0 +1,108 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ai-service.fullname" . }}
+  labels:
+    {{- include "ai-service.labels" . | nindent 4 }}
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "{{ .Values.monitoring.port }}"
+    prometheus.io/path: "{{ .Values.monitoring.path }}"
+spec:
+  # High availability with multiple replicas
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "ai-service.selectorLabels" . | nindent 6 }}
+  # Rolling update strategy for zero-downtime deployments
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        {{- include "ai-service.selectorLabels" . | nindent 8 }}
+      annotations:
+        # Force pod restart when configmap changes
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      # Security context for the pod
+      securityContext:
+        {{- toYaml .Values.securityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          # Container security context
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+            - name: metrics
+              containerPort: {{ .Values.monitoring.port }}
+              protocol: TCP
+          # Resource requests and limits including GPU
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          # Environment variables
+          env:
+            - name: PYTHON_ENV
+              value: {{ .Values.env.PYTHON_ENV }}
+            - name: PORT
+              value: {{ .Values.env.PORT | quote }}
+            - name: DEFAULT_LLM_MODEL
+              value: {{ .Values.env.DEFAULT_LLM_MODEL }}
+            - name: DEFAULT_TEMPERATURE
+              value: {{ .Values.env.DEFAULT_TEMPERATURE | quote }}
+            - name: DEFAULT_MAX_TOKENS
+              value: {{ .Values.env.DEFAULT_MAX_TOKENS | quote }}
+            - name: EMBEDDING_MODEL
+              value: {{ .Values.env.EMBEDDING_MODEL }}
+            - name: EMBEDDING_DIMENSION
+              value: {{ .Values.env.EMBEDDING_DIMENSION | quote }}
+            - name: REQUEST_TIMEOUT_SECONDS
+              value: {{ .Values.env.REQUEST_TIMEOUT_SECONDS | quote }}
+            - name: MAX_CONCURRENT_REQUESTS
+              value: {{ .Values.env.MAX_CONCURRENT_REQUESTS | quote }}
+            - name: BATCH_SIZE
+              value: {{ .Values.env.BATCH_SIZE | quote }}
+            # Secrets from Kubernetes secrets
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.openaiApiKey.name }}
+                  key: {{ .Values.secrets.openaiApiKey.key }}
+            - name: PINECONE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.pineconeApiKey.name }}
+                  key: {{ .Values.secrets.pineconeApiKey.key }}
+          # Liveness probe configuration
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          # Readiness probe configuration
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          # Volume mounts for temporary files
+          volumeMounts:
+            {{- toYaml .Values.volumeMounts | nindent 12 }}
+      # Node selection for GPU nodes
+      nodeSelector:
+        {{- toYaml .Values.nodeSelector | nindent 8 }}
+      # Tolerations for GPU nodes
+      tolerations:
+        {{- toYaml .Values.tolerations | nindent 8 }}
+      # Pod affinity rules for high availability
+      affinity:
+        {{- toYaml .Values.affinity | nindent 8 }}
+      # Volumes configuration
+      volumes:
+        {{- toYaml .Values.volumes | nindent 8 }}
+      # Grace period for pod termination
+      terminationGracePeriodSeconds: 60
+      # Service account for pod
+      serviceAccountName: {{ include "ai-service.serviceAccountName" . }}
