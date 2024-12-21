@@ -1,0 +1,269 @@
+version: "3.9"
+
+# Define services
+services:
+  # API Gateway Service
+  api-gateway:
+    build:
+      context: ./api-gateway
+      target: node-builder
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - LOG_LEVEL=info
+      - JWT_SECRET=${JWT_SECRET}
+      - RATE_LIMIT_WINDOW=900000
+      - RATE_LIMIT_MAX=100
+    depends_on:
+      - auth-service
+      - workflow-engine
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    networks:
+      - backend
+    security_opt:
+      - no-new-privileges:true
+
+  # Authentication Service
+  auth-service:
+    build:
+      context: ./auth-service
+      target: node-builder
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRES_IN=1h
+      - REFRESH_TOKEN_EXPIRES_IN=7d
+      - MFA_ENABLED=true
+      - MFA_ISSUER=WorkflowAutomation
+      - POSTGRES_HOST=postgres
+      - REDIS_HOST=redis
+    depends_on:
+      - postgres
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    networks:
+      - backend
+    security_opt:
+      - no-new-privileges:true
+
+  # Workflow Engine Service
+  workflow-engine:
+    build:
+      context: ./workflow-engine
+      target: go-builder
+    ports:
+      - "8000:8000"
+    environment:
+      - POSTGRES_HOST=postgres
+      - REDIS_HOST=redis
+      - RABBITMQ_HOST=rabbitmq
+      - LOG_LEVEL=info
+      - MAX_WORKERS=5
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+    networks:
+      - backend
+    security_opt:
+      - no-new-privileges:true
+
+  # AI Service
+  ai-service:
+    build:
+      context: ./ai-service
+      target: python-builder
+    environment:
+      - PYTHONUNBUFFERED=1
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_ORG_ID=${OPENAI_ORG_ID}
+      - DEFAULT_LLM_MODEL=gpt-4
+      - MODEL_TEMPERATURE=0.7
+      - MAX_TOKENS=1000
+      - VECTOR_DB_API_KEY=${VECTOR_DB_API_KEY}
+      - VECTOR_DB_ENVIRONMENT=development
+    depends_on:
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+    networks:
+      - backend
+    security_opt:
+      - no-new-privileges:true
+
+  # Integration Service
+  integration-service:
+    build:
+      context: ./integration-service
+      target: node-builder
+    environment:
+      - NODE_ENV=development
+      - PORT=3002
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - REDIS_HOST=redis
+    depends_on:
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    networks:
+      - backend
+    security_opt:
+      - no-new-privileges:true
+
+  # Monitoring Service
+  monitoring-service:
+    build:
+      context: ./monitoring-service
+      target: go-builder
+    ports:
+      - "9090:9090"
+    environment:
+      - LOG_LEVEL=info
+      - POSTGRES_HOST=postgres
+    depends_on:
+      - postgres
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9090/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    networks:
+      - backend
+    security_opt:
+      - no-new-privileges:true
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15.0-alpine
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+    networks:
+      - backend
+
+  # Redis Cache
+  redis:
+    image: redis:7.2-alpine
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    networks:
+      - backend
+
+  # RabbitMQ Message Broker
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    networks:
+      - backend
+
+# Define volumes
+volumes:
+  postgres_data:
+    name: workflow_postgres_data
+  redis_data:
+    name: workflow_redis_data
+  rabbitmq_data:
+    name: workflow_rabbitmq_data
+
+# Define networks
+networks:
+  backend:
+    driver: bridge
+    internal: true
+    name: workflow_backend_network
+    driver_opts:
+      com.docker.network.bridge.name: workflow_bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.0.0/16
