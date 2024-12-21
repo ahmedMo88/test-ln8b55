@@ -1,0 +1,116 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "workflow-engine.fullname" . }}
+  labels:
+    helm.sh/chart: {{ template "workflow-engine.chart" . }}
+    app.kubernetes.io/name: {{ template "workflow-engine.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/component: workflow-engine
+    app.kubernetes.io/part-of: workflow-automation-platform
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: {{ .Values.service.metrics.port | quote }}
+    prometheus.io/path: "/metrics"
+    checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+spec:
+  # Ensure high availability with multiple replicas
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ template "workflow-engine.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  # Configure rolling updates for zero-downtime deployments
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ template "workflow-engine.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+      annotations:
+        # Enable Prometheus metrics scraping
+        prometheus.io/scrape: "true"
+        prometheus.io/port: {{ .Values.service.metrics.port | quote }}
+        prometheus.io/path: "/metrics"
+        # Add checksum for config changes detection
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      # Use dedicated service account for security
+      serviceAccountName: {{ template "workflow-engine.serviceAccountName" . }}
+      # Configure pod security context
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      # Configure init containers if needed
+      {{- if .Values.initContainers }}
+      initContainers:
+        {{- toYaml .Values.initContainers | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          # Configure container security context
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+            - name: metrics
+              containerPort: {{ .Values.service.metrics.port }}
+              protocol: TCP
+          # Configure environment variables
+          envFrom:
+            - configMapRef:
+                name: {{ template "workflow-engine.fullname" . }}-config
+            - secretRef:
+                name: {{ template "workflow-engine.fullname" . }}-secrets
+          env:
+            {{- if .Values.env }}
+            {{- toYaml .Values.env | nindent 12 }}
+            {{- end }}
+          # Configure resource limits and requests
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          # Configure liveness probe
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          # Configure readiness probe
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          # Configure startup probe
+          startupProbe:
+            {{- toYaml .Values.startupProbe | nindent 12 }}
+          # Configure volume mounts if needed
+          {{- if .Values.volumeMounts }}
+          volumeMounts:
+            {{- toYaml .Values.volumeMounts | nindent 12 }}
+          {{- end }}
+      # Configure node affinity for high availability
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      # Configure node selector
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      # Configure tolerations
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      # Configure volumes if needed
+      {{- if .Values.volumes }}
+      volumes:
+        {{- toYaml .Values.volumes | nindent 8 }}
+      {{- end }}
+      # Configure termination grace period
+      terminationGracePeriodSeconds: 60
