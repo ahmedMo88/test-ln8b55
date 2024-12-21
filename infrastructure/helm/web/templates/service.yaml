@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "web.fullname" . }}
+  labels:
+    {{- include "web.labels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: workflow-automation
+  annotations:
+    {{- with .Values.service.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    # Prometheus metrics scraping
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "{{ .Values.service.targetPort }}"
+    prometheus.io/path: "/metrics"
+    # Service monitoring
+    monitoring.kubernetes.io/service-name: {{ include "web.fullname" . }}
+    # Security annotations
+    security.cloud.google.com/use-ip-aliases: "true"
+    service.beta.kubernetes.io/backend-protocol: "HTTPS"
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.targetPort }}
+      protocol: TCP
+      name: http
+      {{- if eq .Values.service.type "NodePort" }}
+      nodePort: {{ .Values.service.nodePort }}
+      {{- end }}
+  selector:
+    {{- include "web.selectorLabels" . | nindent 4 }}
+  # Ensure session affinity for better user experience
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800  # 3 hours
+  # Ensure proper load balancing
+  {{- if eq .Values.service.type "LoadBalancer" }}
+  externalTrafficPolicy: Local
+  {{- end }}
+  # Enable IPv4 and IPv6 dual-stack if available
+  ipFamilyPolicy: PreferDualStack
+  ipFamilies:
+    - IPv4
+    - IPv6
