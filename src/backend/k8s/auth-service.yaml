@@ -1,0 +1,138 @@
+# Authentication Service Deployment Manifest
+# Version: v1
+# Node.js Version: 20-alpine
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+  namespace: workflow-platform
+  labels:
+    app: workflow-platform
+    service: auth-service
+    environment: production
+    version: v1
+  annotations:
+    description: "Authentication and authorization service for workflow platform"
+    security.compliance: "SOC2, HIPAA"
+spec:
+  # High availability with 3 replicas
+  replicas: 3
+  selector:
+    matchLabels:
+      service: auth-service
+  
+  # Zero-downtime deployment strategy
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  
+  template:
+    metadata:
+      labels:
+        service: auth-service
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3001"
+        prometheus.io/path: "/metrics"
+    
+    spec:
+      # Security context for the pod
+      securityContext:
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      
+      # High availability pod anti-affinity
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  service: auth-service
+      
+      containers:
+      - name: auth-service
+        image: auth-service:latest
+        imagePullPolicy: Always
+        
+        # Container ports
+        ports:
+        - containerPort: 3001
+          protocol: TCP
+          name: http
+        
+        # Resource limits and requests
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+        
+        # Health checks
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3001
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3001
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          successThreshold: 1
+        
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 3001
+          failureThreshold: 30
+          periodSeconds: 10
+        
+        # Environment configuration
+        envFrom:
+        - configMapRef:
+            name: workflow-platform-config
+        - secretRef:
+            name: workflow-platform-secrets
+        
+        # Enhanced security context
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          runAsGroup: 1000
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        
+        # Volume mounts for temporary files
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+          readOnly: false
+      
+      # Volumes definition
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      
+      # Service account and pull secrets
+      serviceAccountName: auth-service-sa
+      imagePullSecrets:
+      - name: registry-credentials
