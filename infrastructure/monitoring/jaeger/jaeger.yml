@@ -1,0 +1,193 @@
+# Jaeger Operator Configuration v1.47.0
+# Production deployment with high availability, security and performance optimizations
+apiVersion: jaegertracing.io/v1
+kind: Jaeger
+metadata:
+  name: workflow-jaeger
+  namespace: monitoring
+  labels:
+    app: workflow-automation
+    component: tracing
+spec:
+  # Production deployment strategy with high availability
+  strategy: production
+
+  # Elasticsearch storage backend configuration
+  storage:
+    type: elasticsearch
+    options:
+      es:
+        server-urls: http://elasticsearch:9200
+        index-prefix: jaeger
+        username: ${ELASTIC_USERNAME}
+        password: ${ELASTIC_PASSWORD}
+        # Additional ES optimizations
+        num-shards: 5
+        num-replicas: 1
+        max-doc-count: 25000
+        bulk:
+          size: 5000000
+          workers: 5
+          flush-interval: 250ms
+
+  # Collector configuration with HA and resource optimization
+  collector:
+    replicas: 2
+    resources:
+      limits:
+        cpu: "1"
+        memory: 1Gi
+      requests:
+        cpu: 500m
+        memory: 512Mi
+    options:
+      collector:
+        num-workers: 50
+        queue-size: 2000
+        grpc-server:
+          host-port: ":14250"
+        http-server:
+          host-port: ":14268"
+        zipkin:
+          host-port: ":9411"
+    autoscale:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 5
+      targetCPUUtilizationPercentage: 80
+
+  # Query service configuration with HA and security
+  query:
+    replicas: 2
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 250m
+        memory: 256Mi
+    options:
+      query:
+        base-path: /jaeger
+        bearer-token-propagation: true
+        cors:
+          enabled: true
+          allowed-origins: 
+            - https://*.workflow-automation.com
+        max-clock-skew-adjustment: 0s
+    serviceMonitor:
+      enabled: true
+    ingress:
+      enabled: true
+      annotations:
+        kubernetes.io/ingress.class: nginx
+        nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      hosts:
+        - jaeger.workflow-automation.com
+      tls:
+        - secretName: jaeger-tls
+          hosts:
+            - jaeger.workflow-automation.com
+
+  # Agent configuration as DaemonSet
+  agent:
+    strategy: DaemonSet
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 250m
+        memory: 256Mi
+    options:
+      agent:
+        host-port: ":6831"
+        tags: "cluster=production,environment=prod"
+        reporter:
+          grpc:
+            host-port: "jaeger-collector:14250"
+          queue:
+            size: 1000
+    serviceMonitor:
+      enabled: true
+
+  # Ingester configuration for processing spans
+  ingester:
+    replicas: 2
+    resources:
+      limits:
+        cpu: "1"
+        memory: 1Gi
+      requests:
+        cpu: 500m
+        memory: 512Mi
+    options:
+      ingester:
+        deadlockInterval: 1s
+        kafka:
+          consumer:
+            topic: jaeger-spans
+            brokers: kafka:9092
+            group-id: jaeger-ingester
+    autoscale:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 4
+      targetCPUUtilizationPercentage: 80
+
+  # Sampling configuration for production load
+  sampling:
+    options:
+      default_strategy:
+        type: probabilistic
+        param: 0.1
+      service_strategies:
+        - service: critical-service
+          type: probabilistic
+          param: 1.0
+        - service: background-service
+          type: probabilistic
+          param: 0.05
+
+  # UI configuration with custom menu and analytics
+  ui:
+    options:
+      dependencies:
+        menuEnabled: true
+      tracking:
+        gaID: ${GA_TRACKING_ID}
+      menu:
+        - label: About Workflow Automation
+          items:
+            - label: Documentation
+              url: /docs
+      refresh: 60
+      query:
+        maxClockSkewAdjustment: 0s
+
+  # Security configuration
+  security:
+    oauth:
+      enabled: true
+      clientId: jaeger-ui
+      clientSecret: ${OAUTH_CLIENT_SECRET}
+      issuer: https://auth.workflow-automation.com
+    tls:
+      enabled: true
+      ca: /etc/jaeger/tls/ca.crt
+      cert: /etc/jaeger/tls/tls.crt
+      key: /etc/jaeger/tls/tls.key
+
+  # Annotations for Kubernetes deployment
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "16686"
+
+  # Resource limits for overall Jaeger instance
+  resources:
+    limits:
+      cpu: "4"
+      memory: 4Gi
+    requests:
+      cpu: "2"
+      memory: 2Gi
