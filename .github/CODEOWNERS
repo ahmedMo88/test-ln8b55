@@ -1,0 +1,37 @@
+# Defines code ownership and mandatory review requirements
+# Contact: platform-leads@company.com
+
+# AI Service Components
+# Models require AI team and platform lead review
+src/backend/ai-service/models/* @ai-team @platform-leads
+
+# AI APIs require AI team, API team and platform lead review
+src/backend/ai-service/api/* @ai-team @api-team @platform-leads
+
+# Security-sensitive authentication components
+# Require security team and platform lead review
+src/backend/**/auth/* @security-team @platform-leads
+
+# Frontend UI Components
+# Require frontend team and platform lead review
+src/web/components/* @frontend-team @platform-leads
+
+# Frontend Services Layer
+# Require frontend team, API team and platform lead review
+src/web/services/* @frontend-team @api-team @platform-leads
+
+# Infrastructure Secrets and Sensitive Configurations
+# Require security team, devops team and platform lead review
+infrastructure/secrets/* @security-team @devops-team @platform-leads
+
+# General Infrastructure Components
+# Require devops team and platform lead review
+infrastructure/* @devops-team @platform-leads
+
+# CI/CD Pipeline Configurations
+# Require devops team and platform lead review
+.github/workflows/* @devops-team @platform-leads
+
+# Default ownership for all other files
+# Requires platform lead review as a minimum
+* @platform-leads
