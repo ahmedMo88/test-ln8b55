@@ -1,0 +1,103 @@
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp
+.pnp.js
+
+# Build outputs
+dist
+build
+.next
+out
+*.tsbuildinfo
+
+# Testing
+coverage
+cypress
+cypress.config.ts
+__tests__
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+jest.config.ts
+test-results
+.nyc_output
+
+# Development configs
+.git
+.gitignore
+.eslintrc.js
+.eslintrc.json
+.eslintignore
+.prettierrc
+.prettierrc.js
+.editorconfig
+.vscode
+.idea
+*.sublime-*
+
+# Environment and secrets
+.env*
+.env.local
+.env.development
+.env.test
+.env.production
+*.pem
+.npmrc
+
+# Documentation
+*.md
+LICENSE
+docs
+CHANGELOG.md
+CONTRIBUTING.md
+
+# Logs and debugging
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+debug.log
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.swp
+*.swo
+*~
+tmp
+temp
+
+# Cache directories
+.cache
+.npm
+.eslintcache
+.stylelintcache
+
+# Development tools
+.husky
+.github
+.storybook
+storybook-static
+*.stories.tsx
+*.stories.ts
+
+# Miscellaneous
+.dockerignore
+docker-compose*.yml
+Dockerfile*
+README.md
+CHANGELOG.md
+.gitlab-ci.yml
+.travis.yml
+.circleci
