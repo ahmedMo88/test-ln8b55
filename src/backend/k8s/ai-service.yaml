@@ -1,0 +1,178 @@
+# AI Service Deployment Manifest
+# Version: v1
+# Kubernetes Version: 1.28
+# Description: Production deployment configuration for AI service with GPU support
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-service
+  namespace: workflow-platform
+  labels:
+    app: workflow-platform
+    service: ai-service
+    environment: production
+    version: v1
+    tier: backend
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8000"
+    prometheus.io/path: "/metrics"
+    kubernetes.io/description: "AI service for intelligent automation and language processing"
+    deployment.kubernetes.io/revision: "1"
+
+spec:
+  # High availability configuration with 3 replicas
+  replicas: 3
+  
+  # Pod selector for deployment management
+  selector:
+    matchLabels:
+      service: ai-service
+  
+  # Zero-downtime deployment strategy
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  
+  template:
+    metadata:
+      labels:
+        service: ai-service
+        version: v1
+        tier: backend
+      annotations:
+        checksum/config: ${CONFIG_CHECKSUM}
+        co.elastic.logs/enabled: "true"
+    
+    spec:
+      # Container specifications
+      containers:
+      - name: ai-service
+        image: workflow-platform/ai-service:latest
+        imagePullPolicy: Always
+        
+        # Container port configuration
+        ports:
+        - containerPort: 8000
+          protocol: TCP
+          name: http
+        
+        # Resource allocation with GPU support
+        resources:
+          requests:
+            cpu: "1000m"
+            memory: "2Gi"
+            nvidia.com/gpu: "1"
+          limits:
+            cpu: "2000m"
+            memory: "4Gi"
+            nvidia.com/gpu: "1"
+        
+        # Health check configuration
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          failureThreshold: 30
+          periodSeconds: 10
+        
+        # Security context for container hardening
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        
+        # Environment configuration
+        env:
+        - name: PORT
+          valueFrom:
+            configMapKeyRef:
+              name: workflow-platform-config
+              key: ai_service.PORT
+        - name: PYTHON_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: workflow-platform-config
+              key: ai_service.PYTHON_ENV
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: workflow-platform-secrets
+              key: OPENAI_API_KEY
+        - name: PINECONE_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: workflow-platform-secrets
+              key: PINECONE_API_KEY
+        
+        # Volume mounts for temporary data
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: cache
+          mountPath: /cache
+      
+      # Volumes configuration
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: cache
+        emptyDir: {}
+      
+      # Node selection for GPU availability
+      nodeSelector:
+        cloud.google.com/gke-accelerator: nvidia-tesla-t4
+      
+      # High availability pod distribution
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: service
+                  operator: In
+                  values:
+                  - ai-service
+              topologyKey: kubernetes.io/hostname
+      
+      # Service account and security configuration
+      serviceAccountName: ai-service
+      automountServiceAccountToken: true
+      terminationGracePeriodSeconds: 60
+      
+      # Pod security configuration
+      securityContext:
+        fsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      
+      # Image pull configuration
+      imagePullSecrets:
+      - name: registry-credentials
