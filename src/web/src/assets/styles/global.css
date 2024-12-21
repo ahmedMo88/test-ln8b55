@@ -1,0 +1,238 @@
+/* global.css
+ * Version: 1.0.0
+ * Description: Global CSS styles implementing Material Design 3.0 principles
+ * with responsive design patterns and accessibility support
+ */
+
+/* --------------------
+ * CSS Reset & Base Styles
+ * -------------------- */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  scroll-behavior: smooth;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* --------------------
+ * Root Variables
+ * -------------------- */
+:root {
+  /* Spacing System (8px grid) */
+  --spacing-unit: 8px;
+  --header-height: 64px;
+  --sidebar-width: 280px;
+  --content-max-width: 1440px;
+
+  /* Z-index Layers */
+  --z-index-modal: 1000;
+  --z-index-dropdown: 100;
+  --z-index-header: 10;
+  --z-index-content: 1;
+
+  /* Animation */
+  --transition-speed: 200ms;
+  --transition-easing: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Focus States */
+  --focus-ring: 0 0 0 2px var(--color-primary);
+
+  /* Elevation/Shadows */
+  --shadow-elevation-1: 0 1px 3px rgba(0,0,0,0.12);
+  --shadow-elevation-2: 0 3px 6px rgba(0,0,0,0.15);
+  --shadow-elevation-3: 0 10px 20px rgba(0,0,0,0.18);
+
+  /* Breakpoints */
+  --breakpoint-xs: 320px;
+  --breakpoint-sm: 768px;
+  --breakpoint-md: 1024px;
+  --breakpoint-lg: 1440px;
+
+  /* Container Padding */
+  --container-padding-xs: 16px;
+  --container-padding-sm: 24px;
+  --container-padding-md: 32px;
+  --container-padding-lg: 48px;
+
+  /* Typography System */
+  --font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-family-mono: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+  
+  --font-size-xs: 12px;
+  --font-size-sm: 14px;
+  --font-size-base: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 20px;
+  --font-size-2xl: 24px;
+  --font-size-3xl: 32px;
+
+  --line-height-tight: 1.2;
+  --line-height-base: 1.5;
+  --line-height-relaxed: 1.75;
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 700;
+}
+
+/* --------------------
+ * Layout Classes
+ * -------------------- */
+.container {
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  padding: var(--container-padding-xs);
+}
+
+@media (min-width: 768px) {
+  .container {
+    padding: var(--container-padding-sm);
+  }
+}
+
+@media (min-width: 1024px) {
+  .container {
+    padding: var(--container-padding-md);
+  }
+}
+
+@media (min-width: 1440px) {
+  .container {
+    padding: var(--container-padding-lg);
+  }
+}
+
+.grid {
+  display: grid;
+  gap: var(--spacing-unit);
+}
+
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.flex-row { flex-direction: row; }
+.items-center { align-items: center; }
+.items-start { align-items: flex-start; }
+.items-end { align-items: flex-end; }
+.justify-center { justify-content: center; }
+.justify-between { justify-content: space-between; }
+.justify-start { justify-content: flex-start; }
+.justify-end { justify-content: flex-end; }
+
+/* --------------------
+ * Spacing Classes
+ * -------------------- */
+.m-0 { margin: 0; }
+.m-1 { margin: var(--spacing-unit); }
+.m-2 { margin: calc(var(--spacing-unit) * 2); }
+.m-3 { margin: calc(var(--spacing-unit) * 3); }
+.m-4 { margin: calc(var(--spacing-unit) * 4); }
+
+.p-0 { padding: 0; }
+.p-1 { padding: var(--spacing-unit); }
+.p-2 { padding: calc(var(--spacing-unit) * 2); }
+.p-3 { padding: calc(var(--spacing-unit) * 3); }
+.p-4 { padding: calc(var(--spacing-unit) * 4); }
+
+.gap-1 { gap: var(--spacing-unit); }
+.gap-2 { gap: calc(var(--spacing-unit) * 2); }
+.gap-3 { gap: calc(var(--spacing-unit) * 3); }
+.gap-4 { gap: calc(var(--spacing-unit) * 4); }
+
+/* --------------------
+ * Accessibility Classes
+ * -------------------- */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  border: 0;
+}
+
+.focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: var(--color-background);
+  padding: 8px;
+  z-index: var(--z-index-modal);
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
+/* Motion preferences */
+.motion-safe {
+  @media (prefers-reduced-motion: no-preference) {
+    transition: all var(--transition-speed) var(--transition-easing);
+  }
+}
+
+.motion-reduce {
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+/* --------------------
+ * Responsive Classes
+ * -------------------- */
+.hidden { display: none; }
+.block { display: block; }
+.inline { display: inline; }
+.inline-block { display: inline-block; }
+
+/* Responsive visibility */
+@media (max-width: 767px) {
+  .hidden-xs { display: none; }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .hidden-sm { display: none; }
+}
+
+@media (min-width: 1024px) and (max-width: 1439px) {
+  .hidden-md { display: none; }
+}
+
+@media (min-width: 1440px) {
+  .hidden-lg { display: none; }
+}
+
+/* --------------------
+ * Print Styles
+ * -------------------- */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  a[href]:after {
+    content: " (" attr(href) ")";
+  }
+
+  abbr[title]:after {
+    content: " (" attr(title) ")";
+  }
+}
+
+/* --------------------
+ * High Contrast Mode
+ * -------------------- */
+@media (forced-colors: active) {
+  :root {
+    --focus-ring: 0 0 0 2px ButtonText;
+  }
+}
