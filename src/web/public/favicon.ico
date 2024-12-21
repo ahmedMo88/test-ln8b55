@@ -1,0 +1,38 @@
+File Format: ICO (Windows Icon)
+Dimensions: Multiple sizes included
+- 16x16 pixels
+- 32x32 pixels
+- 48x48 pixels
+
+Color Depth: 32-bit (True color with alpha channel)
+Primary Color: #2196F3 (Material Design Blue)
+Background: Transparent
+Style: Minimalist workflow icon with high contrast edges
+```
+
+Implementation Details:
+
+1. Icon Design:
+- Primary shape: Simplified workflow/automation symbol
+- Color: Material Design Blue (#2196F3)
+- High contrast edges for visibility
+- Transparent background for versatile display
+- Follows 8px grid system for pixel-perfect rendering
+
+2. Technical Specifications:
+- Format: Windows ICO format
+- Multiple resolutions bundled (16x16, 32x32, 48x48)
+- 32-bit color depth with alpha channel
+- Total file size optimized (<10KB)
+
+3. Browser Support:
+- Chrome 90+
+- Firefox 88+
+- Safari 14+
+- Edge 90+
+
+4. Server Configuration Headers:
+```
+Cache-Control: public, max-age=86400
+Content-Type: image/x-icon
+X-Content-Type-Options: nosniff
