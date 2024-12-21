@@ -1,0 +1,165 @@
+# Deployment template for monitoring service with comprehensive metrics collection,
+# health checks, and distributed tracing capabilities
+# Version: 1.0.0
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "monitoring-service.fullname" . }}
+  labels:
+    {{- include "monitoring-service.labels" . | nindent 4 }}
+  annotations:
+    # Deployment description
+    kubernetes.io/description: "Monitoring service for metrics collection, health checks, and tracing"
+    # Security scanning annotations
+    seccomp.security.alpha.kubernetes.io/pod: "runtime/default"
+    container.apparmor.security.beta.kubernetes.io/{{ .Chart.Name }}: "runtime/default"
+    # Prometheus scraping configuration
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "{{ .Values.service.ports.metrics }}"
+    prometheus.io/path: "/metrics"
+
+spec:
+  # Ensure high availability with multiple replicas
+  replicas: {{ .Values.replicaCount | default 2 }}
+  
+  # Selector for pod management
+  selector:
+    matchLabels:
+      {{- include "monitoring-service.selectorLabels" . | nindent 6 }}
+  
+  # Pod template specification
+  template:
+    metadata:
+      labels:
+        {{- include "monitoring-service.selectorLabels" . | nindent 8 }}
+      annotations:
+        # Pod security annotations
+        security.alpha.kubernetes.io/sysctls: "net.ipv4.tcp_syncookies=1,net.ipv4.tcp_max_syn_backlog=1024"
+        # Timestamp for tracking updates
+        timestamp: {{ now | quote }}
+        
+    spec:
+      # Security context for enhanced pod security
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 2000
+        seccompProfile:
+          type: RuntimeDefault
+        
+      # Service account for pod permissions
+      serviceAccountName: {{ include "monitoring-service.serviceAccountName" . }}
+      
+      # Container specifications
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          
+          # Security context for container
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          
+          # Port configuration
+          ports:
+            - name: metrics
+              containerPort: {{ .Values.service.ports.metrics }}
+              protocol: TCP
+            - name: health
+              containerPort: {{ .Values.service.ports.health }}
+              protocol: TCP
+            - name: tracing
+              containerPort: {{ .Values.service.ports.tracing }}
+              protocol: TCP
+          
+          # Environment variables
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: METRICS_PORT
+              value: "{{ .Values.service.ports.metrics }}"
+            - name: HEALTH_PORT
+              value: "{{ .Values.service.ports.health }}"
+          
+          # Resource limits and requests
+          resources:
+            limits:
+              cpu: {{ .Values.resources.limits.cpu | default "500m" }}
+              memory: {{ .Values.resources.limits.memory | default "512Mi" }}
+            requests:
+              cpu: {{ .Values.resources.requests.cpu | default "100m" }}
+              memory: {{ .Values.resources.requests.memory | default "128Mi" }}
+          
+          # Liveness probe configuration
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: health
+            initialDelaySeconds: {{ .Values.probes.liveness.initialDelaySeconds | default 15 }}
+            periodSeconds: {{ .Values.probes.liveness.periodSeconds | default 20 }}
+            timeoutSeconds: {{ .Values.probes.liveness.timeoutSeconds | default 5 }}
+            failureThreshold: {{ .Values.probes.liveness.failureThreshold | default 3 }}
+          
+          # Readiness probe configuration
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: health
+            initialDelaySeconds: {{ .Values.probes.readiness.initialDelaySeconds | default 5 }}
+            periodSeconds: {{ .Values.probes.readiness.periodSeconds | default 10 }}
+            timeoutSeconds: {{ .Values.probes.readiness.timeoutSeconds | default 3 }}
+            successThreshold: {{ .Values.probes.readiness.successThreshold | default 1 }}
+          
+          # Volume mounts
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: config
+              mountPath: /etc/monitoring
+              readOnly: true
+            
+      # Volumes configuration
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: config
+          configMap:
+            name: {{ include "monitoring-service.fullname" . }}-config
+            
+      # Node affinity and anti-affinity rules
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    {{- include "monitoring-service.selectorLabels" . | nindent 20 }}
+                topologyKey: kubernetes.io/hostname
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/os
+                    operator: In
+                    values:
+                      - linux
+                      
+      # Pod disruption budget reference
+      terminationGracePeriodSeconds: 30
+      
+      # Image pull secrets if required
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
