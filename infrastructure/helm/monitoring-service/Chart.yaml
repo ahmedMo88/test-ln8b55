@@ -1,0 +1,84 @@
+# Helm chart definition for enterprise-grade monitoring service
+# Version: 1.0.0
+# Supports comprehensive observability through metrics collection, distributed tracing,
+# and log aggregation to ensure 99.9% system uptime with sub-5-second response times
+
+apiVersion: v2
+name: monitoring-service
+description: |
+  Enterprise-grade Helm chart for deploying comprehensive monitoring infrastructure 
+  with metrics collection, distributed tracing, and log aggregation capabilities. 
+  Provides complete system observability to maintain 99.9% uptime SLA and sub-5-second 
+  response times through integrated Prometheus metrics, Jaeger tracing, and centralized logging.
+
+# Chart type and version information
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+
+# Keywords for chart discovery and categorization
+keywords:
+  - monitoring
+  - metrics
+  - tracing
+  - prometheus
+  - jaeger
+  - observability
+  - alerting
+  - logging
+  - enterprise
+  - reliability
+  - performance
+
+# Chart maintainers
+maintainers:
+  - name: Platform Team
+    email: platform@company.com
+    url: https://github.com/org/monitoring-service
+
+# Chart home page
+home: https://github.com/org/monitoring-service
+
+# Source code location
+sources:
+  - https://github.com/org/monitoring-service
+
+# Additional annotations
+annotations:
+  category: monitoring
+  licenses: Apache-2.0
+  support: enterprise
+
+# Dependencies on other Helm charts
+dependencies:
+  # Prometheus for metrics collection and alerting
+  - name: prometheus
+    version: "15.0.0"
+    repository: https://prometheus-community.github.io/helm-charts
+    condition: metrics.enabled
+    tags:
+      - metrics
+      - monitoring
+    # Import values from Prometheus chart
+    import-values:
+      - child: metrics
+        parent: prometheus
+
+  # Jaeger for distributed tracing
+  - name: jaeger
+    version: "0.71.0"
+    repository: https://jaegertracing.github.io/helm-charts
+    condition: tracing.enabled
+    tags:
+      - tracing
+      - monitoring
+    # Import values from Jaeger chart
+    import-values:
+      - child: tracing
+        parent: jaeger
+
+# Icon for the chart
+icon: https://raw.githubusercontent.com/org/monitoring-service/main/assets/icon.png
+
+# Kubeversion compatibility
+kubeVersion: ">=1.21.0-0"
