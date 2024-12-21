@@ -1,0 +1,43 @@
+MIT License
+
+Copyright (c) 2024 Workflow Automation Platform Contributors. All rights reserved.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+Additional Enterprise Terms:
+
+1. SOC2, HIPAA, GDPR, and PCI DSS Compliance: This license does not grant 
+   exemption from compliance with applicable regulatory requirements. Users 
+   must ensure their implementation meets all relevant compliance standards.
+
+2. Third-Party Integrations: Integration with external services, AI platforms,
+   cloud providers, and enterprise systems must comply with respective service
+   terms and conditions in addition to this license.
+
+3. Distribution Requirements: All distributions of this software, whether in
+   source or binary form, must maintain all copyright notices, licenses, and
+   documentation of changes made to the original software.
+
+4. Enterprise Usage: Commercial deployment in enterprise environments requires
+   adherence to security, compliance, and data protection standards as outlined
+   in the technical documentation.
+
+5. Trademark Usage: The Workflow Automation Platform name and associated
+   trademarks may not be used to endorse or promote derivative products
+   without specific prior written permission.
