@@ -1,0 +1,38 @@
+apiVersion: v2
+name: web
+version: 1.0.0
+description: Helm chart for deploying the workflow automation platform web frontend
+type: application
+appVersion: 1.0.0
+kubeVersion: ">=1.28.0"
+
+# Chart dependencies
+dependencies:
+  - name: nginx-ingress
+    version: "~4.7.0"
+    repository: https://kubernetes.github.io/ingress-nginx
+    condition: ingress.enabled
+  
+  - name: prometheus-operator
+    version: "~45.0.0"
+    repository: https://prometheus-community.github.io/helm-charts
+    condition: monitoring.enabled
+  
+  - name: common
+    version: "~2.2.3"
+    repository: https://charts.bitnami.com/bitnami
+    tags:
+      - helpers
+
+# Chart maintainers
+maintainers:
+  - name: Platform Team
+    email: platform@company.com
+
+# Additional metadata annotations
+annotations:
+  artifacthub.io/changes: |-
+    - Initial release of web frontend chart
+    - Added monitoring and ingress dependencies
+  artifacthub.io/license: MIT
+  artifacthub.io/prerelease: "false"
