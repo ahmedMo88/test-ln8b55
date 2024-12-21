@@ -1,0 +1,115 @@
+**/.git
+**/.gitignore
+**/.gitattributes
+**/.svn
+**/.hg
+
+# Node.js
+**/node_modules
+**/npm-debug.log
+**/package-lock.json
+**/.npm
+**/.node_repl_history
+
+# Python
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.coverage
+**/.tox
+**/*.egg-info
+**/*.egg
+**/poetry.lock
+**/.python-version
+
+# Testing
+**/tests
+**/*.test.*
+**/coverage
+**/.nyc_output
+**/jest-coverage
+
+# Documentation
+**/*.md
+**/*.rst
+**/*.txt
+**/docs
+**/LICENSE
+
+# Environment & Secrets
+.env*
+**/.env*
+**/*.pem
+**/*.key
+**/*.cert
+**/*.crt
+
+# Logs & Temp Files
+**/*.log
+**/logs
+**/tmp
+**/temp
+**/.tmp
+**/.temp
+
+# IDE & Editor Files
+**/.idea
+**/.vscode
+**/.settings
+**/.project
+**/.classpath
+**/.sublime-*
+**/*.sw[po]
+**/*~
+
+# OS Generated Files
+**/.DS_Store
+**/.DS_Store?
+**/._*
+**/.Spotlight-V100
+**/.Trashes
+**/ehthumbs.db
+**/Thumbs.db
+
+# Build & Dist
+**/dist
+**/build
+**/.build
+**/.dist
+**/out
+
+# Development Tools
+**/docker-compose*.yml
+**/docker-compose*.yaml
+**/.dockerignore
+**/Dockerfile*
+**/.editorconfig
+**/.eslintrc*
+**/.prettierrc*
+**/.babelrc*
+**/tsconfig*.json
+**/webpack*.js
+**/.travis.yml
+**/.gitlab-ci.yml
+**/.github
+
+# Dependency Management
+**/requirements.txt
+**/requirements-dev.txt
+**/Pipfile
+**/Pipfile.lock
+**/yarn.lock
+**/pnpm-lock.yaml
+
+# Miscellaneous
+**/.htaccess
+**/*.bak
+**/*.swp
+**/*.swo
+**/*.swn
+**/*.orig
+**/*.rej
+**/*.map
+**/*.min.*
+**/*.old
+**/*.new
