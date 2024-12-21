@@ -1,0 +1,63 @@
+# Helm Chart Version: 3.0.0
+# Purpose: Kubernetes service manifest for Integration Service
+# Component: Integration Hub - Network connectivity for 40+ pre-built service connectors
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-integration-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: integration-service
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+    component: integration-hub
+    tier: backend
+  annotations:
+    # Prometheus monitoring annotations
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "{{ .Values.service.port }}"
+    
+    # AWS Load Balancer configurations for production-grade networking
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+    service.beta.kubernetes.io/aws-load-balancer-connection-idle-timeout: "60"
+    
+    # Additional service annotations from values.yaml
+    {{- if .Values.service.annotations }}
+    {{- toYaml .Values.service.annotations | nindent 4 }}
+    {{- end }}
+
+spec:
+  # Service type from values.yaml (ClusterIP, NodePort, or LoadBalancer)
+  type: {{ .Values.service.type }}
+  
+  # Port configurations
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: 3002  # Matches container port from deployment
+      protocol: TCP
+      name: http
+  
+  # Selector matching deployment labels
+  selector:
+    app: integration-service
+    release: {{ .Release.Name }}
+  
+  # Session affinity for consistent routing
+  sessionAffinity: ClientIP
+  
+  # Optional load balancer configurations
+  {{- if eq .Values.service.type "LoadBalancer" }}
+  # Static IP configuration if provided
+  {{- if .Values.service.loadBalancerIP }}
+  loadBalancerIP: {{ .Values.service.loadBalancerIP }}
+  {{- end }}
+  
+  # Local traffic policy for improved network performance
+  externalTrafficPolicy: Local
+  
+  # Health check configurations for load balancer
+  healthCheckNodePort: {{ .Values.service.healthCheckNodePort | default 0 }}
+  {{- end }}
