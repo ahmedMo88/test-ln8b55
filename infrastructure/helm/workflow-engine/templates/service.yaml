@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-workflow-engine
+  labels:
+    # Standard Kubernetes recommended labels
+    helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
+    app.kubernetes.io/name: workflow-engine
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/component: workflow-engine
+    app.kubernetes.io/part-of: workflow-automation-platform
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  # Service type defaulting to ClusterIP for internal communication
+  type: {{ .Values.service.type | default "ClusterIP" }}
+  ports:
+    # gRPC port configuration
+    - port: {{ .Values.service.port | default 3003 }}
+      targetPort: grpc
+      protocol: TCP
+      name: grpc
+      appProtocol: grpc
+    # Metrics port configuration for Prometheus scraping
+    - port: 9090
+      targetPort: metrics
+      protocol: TCP
+      name: metrics
+  # Selector matching deployment pod labels
+  selector:
+    app.kubernetes.io/name: workflow-engine
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  # Session affinity configuration for consistent routing
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800  # 3 hour timeout for session stickiness
