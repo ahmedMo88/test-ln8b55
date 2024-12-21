@@ -1,0 +1,54 @@
+# Workflow Automation Platform ConfigMap
+# Version: 1.0.0
+# Purpose: Centralized non-sensitive configuration for microservices
+# Security: Contains only non-sensitive configuration parameters
+# Usage: Referenced by ai-service, api-gateway, and auth-service deployments
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: workflow-platform-config
+  namespace: workflow-platform
+  labels:
+    app: workflow-platform
+    environment: production
+    managed-by: terraform
+    version: 1.0.0
+  annotations:
+    description: "Production configuration for workflow automation platform services"
+    lastUpdated: "2023-11-01"
+data:
+  # AI Service Configuration
+  # Service: AI processing and orchestration service
+  # Port range: 1024-65535 (non-privileged ports)
+  ai_service.PORT: "3002"
+  ai_service.PYTHON_ENV: "production"
+  ai_service.MODEL_CACHE_SIZE: "2048"  # Cache size in MB
+  ai_service.BATCH_SIZE: "32"  # Batch size for model inference
+  ai_service.VECTOR_DIMENSION: "1536"  # Vector dimension for embeddings
+  ai_service.MAX_CONCURRENT_REQUESTS: "100"  # Maximum concurrent processing requests
+  ai_service.REQUEST_TIMEOUT: "30000"  # Request timeout in milliseconds
+
+  # API Gateway Configuration
+  # Service: Main API gateway for external requests
+  # Security: Includes CORS and rate limiting settings
+  api_gateway.PORT: "3000"
+  api_gateway.NODE_ENV: "production"
+  api_gateway.RATE_LIMIT_WINDOW: "60000"  # Rate limit window in milliseconds
+  api_gateway.RATE_LIMIT_MAX_REQUESTS: "100"  # Maximum requests per window
+  api_gateway.CORS_ORIGIN: "https://workflow-platform.com"
+  api_gateway.CORS_METHODS: "GET,POST,PUT,DELETE,OPTIONS"
+  api_gateway.MAX_PAYLOAD_SIZE: "10mb"
+  api_gateway.REQUEST_TIMEOUT: "60000"  # Request timeout in milliseconds
+
+  # Auth Service Configuration
+  # Service: Authentication and authorization service
+  # Security: Includes session and password policy settings
+  auth_service.PORT: "3001"
+  auth_service.NODE_ENV: "production"
+  auth_service.TOKEN_EXPIRY: "3600"  # JWT token expiry in seconds
+  auth_service.REFRESH_TOKEN_EXPIRY: "604800"  # Refresh token expiry in seconds
+  auth_service.PASSWORD_HASH_ROUNDS: "12"  # Bcrypt hash rounds
+  auth_service.SESSION_TIMEOUT: "3600"  # Session timeout in seconds
+  auth_service.MAX_LOGIN_ATTEMPTS: "5"  # Maximum failed login attempts
+  auth_service.LOCKOUT_DURATION: "900"  # Account lockout duration in seconds
