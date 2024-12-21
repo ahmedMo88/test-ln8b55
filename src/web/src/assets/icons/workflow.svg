@@ -1,0 +1,43 @@
+<svg 
+  xmlns="http://www.w3.org/2000/svg" 
+  viewBox="0 0 24 24"
+  width="24"
+  height="24"
+  fill="currentColor"
+  role="img"
+  aria-label="Workflow"
+  aria-hidden="true"
+  focusable="false"
+>
+  <g
+    stroke="none"
+    strokeWidth="2"
+    fillRule="evenodd"
+  >
+    <!-- Workflow nodes connected by paths representing automation flow -->
+    <!-- Start node -->
+    <circle cx="6" cy="12" r="2.5" />
+    
+    <!-- End node -->
+    <circle cx="18" cy="12" r="2.5" />
+    
+    <!-- Intermediate node top -->
+    <circle cx="12" cy="6" r="2.5" />
+    
+    <!-- Intermediate node bottom -->
+    <circle cx="12" cy="18" r="2.5" />
+    
+    <!-- Connecting lines -->
+    <path d="M8.4 12h2.1l1.5-4.3 1.5 4.3h2.1" 
+          strokeWidth="2"
+          stroke="currentColor"
+          fill="none"
+    />
+    
+    <path d="M8.4 12h2.1l1.5 4.3 1.5-4.3h2.1"
+          strokeWidth="2"
+          stroke="currentColor"
+          fill="none"
+    />
+  </g>
+</svg>
