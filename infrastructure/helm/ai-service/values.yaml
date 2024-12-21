@@ -1,0 +1,151 @@
+# Default values for ai-service Helm chart
+# This is a YAML-formatted file.
+
+# Number of replicas for high availability
+replicaCount: 3
+
+# Container image configuration
+image:
+  repository: registry.example.com/ai-service
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+# Chart name overrides
+nameOverride: ""
+fullnameOverride: ""
+
+# Resource requirements for GPU-optimized instances
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+    nvidia.com/gpu: 1
+  limits:
+    cpu: "2"
+    memory: 4Gi
+    nvidia.com/gpu: 1
+
+# Horizontal Pod Autoscaling configuration
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+# Node selection for GPU instances
+nodeSelector:
+  accelerator: nvidia-gpu
+  node-role.kubernetes.io/ai: "true"
+
+# Tolerations for GPU nodes
+tolerations:
+  - key: "accelerator"
+    operator: "Equal"
+    value: "nvidia-gpu"
+    effect: "NoSchedule"
+
+# Pod affinity/anti-affinity rules
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - ai-service
+          topologyKey: kubernetes.io/hostname
+
+# Environment variables for service configuration
+env:
+  # Runtime environment
+  PYTHON_ENV: production
+  PORT: 3002
+  
+  # AI model configuration
+  DEFAULT_LLM_MODEL: gpt-4
+  DEFAULT_TEMPERATURE: 0.7
+  DEFAULT_MAX_TOKENS: 1000
+  EMBEDDING_MODEL: text-embedding-ada-002
+  EMBEDDING_DIMENSION: 1536
+  
+  # Service timeouts and limits
+  REQUEST_TIMEOUT_SECONDS: 300
+  MAX_CONCURRENT_REQUESTS: 50
+  BATCH_SIZE: 10
+
+# Secret configurations
+secrets:
+  openaiApiKey:
+    name: ai-service-secrets
+    key: openai-api-key
+  pineconeApiKey:
+    name: ai-service-secrets
+    key: pinecone-api-key
+
+# Monitoring configuration
+monitoring:
+  enabled: true
+  port: 3002
+  path: /metrics
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 3002
+
+# Ingress configuration
+ingress:
+  enabled: false
+
+# Pod disruption budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+# Liveness probe
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Readiness probe
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: http
+  initialDelaySeconds: 20
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Pod security context
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 2000
+
+# Container security context
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# Volume mounts for temporary files
+volumeMounts:
+  - name: tmp
+    mountPath: /tmp
+
+# Volumes configuration
+volumes:
+  - name: tmp
+    emptyDir: {}
