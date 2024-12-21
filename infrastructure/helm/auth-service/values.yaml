@@ -1,0 +1,139 @@
+# Authentication Service Helm Chart Values
+# Node.js Version: 20-alpine
+
+# Replica count for high availability
+replicaCount: 3
+
+# Override settings
+nameOverride: ""
+fullnameOverride: ""
+
+# Cluster configuration
+clusterDomain: cluster.local
+
+# Container image configuration
+image:
+  repository: auth-service
+  tag: latest
+  pullPolicy: Always
+  digest: sha256:abc123...
+
+# Image pull secrets for private registry access
+imagePullSecrets:
+  - name: registry-credentials
+
+# Service account configuration with AWS IAM role integration
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/auth-service-role
+  name: auth-service-sa
+
+# Pod annotations for monitoring and secrets management
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "3001"
+  prometheus.io/path: "/metrics"
+  vault.hashicorp.com/agent-inject: "true"
+  vault.hashicorp.com/role: "auth-service"
+
+# Enhanced pod security context
+podSecurityContext:
+  fsGroup: 1000
+  fsGroupChangePolicy: OnRootMismatch
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  supplementalGroups:
+    - 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+# Container security context with principle of least privilege
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 3001
+  targetPort: 3001
+  protocol: TCP
+
+# Resource limits and requests
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 200m
+    memory: 256Mi
+
+# Horizontal pod autoscaling configuration
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+
+# Node selection and scheduling
+nodeSelector:
+  kubernetes.io/os: linux
+  node-type: auth-service
+
+# Pod tolerations
+tolerations:
+  - key: auth-service
+    operator: Equal
+    value: "true"
+    effect: NoSchedule
+
+# Pod anti-affinity for high availability
+affinity:
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - topologyKey: kubernetes.io/hostname
+
+# Environment variables
+env:
+  NODE_ENV: production
+  PORT: "3001"
+  LOG_LEVEL: info
+  ENABLE_METRICS: "true"
+
+# Health check probes
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 3001
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 3001
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 2
+
+startupProbe:
+  httpGet:
+    path: /health
+    port: 3001
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  failureThreshold: 30
