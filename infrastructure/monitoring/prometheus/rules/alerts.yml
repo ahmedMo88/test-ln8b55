@@ -1,0 +1,172 @@
+# Prometheus Alert Rules Configuration
+# Version: 2.47.0
+# Purpose: Define comprehensive alerting rules for system monitoring and reliability
+
+groups:
+  # System Health Alerts
+  - name: system_health
+    rules:
+      # CPU Usage Alerts
+      - alert: HighCPUUsage
+        expr: system:cpu_usage:ratio > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          category: resource
+        annotations:
+          summary: High CPU usage detected
+          description: "Pod {{ $labels.pod }} CPU usage is above 80% for 5 minutes"
+          runbook_url: "runbooks/high_cpu_usage.md"
+
+      - alert: CriticalCPUUsage
+        expr: system:cpu_usage:ratio > 0.95
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+          category: resource
+        annotations:
+          summary: Critical CPU usage detected
+          description: "Pod {{ $labels.pod }} CPU usage is above 95% for 2 minutes"
+          runbook_url: "runbooks/critical_cpu_usage.md"
+
+      # Memory Usage Alerts
+      - alert: HighMemoryUsage
+        expr: system:memory_usage:ratio > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          category: resource
+        annotations:
+          summary: High memory usage detected
+          description: "Pod {{ $labels.pod }} memory usage is above 85% for 5 minutes"
+          runbook_url: "runbooks/high_memory_usage.md"
+
+  # Service Health Alerts
+  - name: service_health
+    rules:
+      # API Performance Alerts
+      - alert: HighAPILatency
+        expr: api:request_duration:avg_5m > 5
+        for: 5m
+        labels:
+          severity: warning
+          team: api
+          category: performance
+        annotations:
+          summary: High API latency detected
+          description: "API request latency is above 5 seconds for 5 minutes"
+          dashboard_url: "{{ $externalURL }}/d/api-performance"
+
+      - alert: HighAPIErrorRate
+        expr: api:error_rate:ratio_5m > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          team: api
+          category: reliability
+        annotations:
+          summary: High API error rate detected
+          description: "API error rate is above 5% for 2 minutes"
+          dashboard_url: "{{ $externalURL }}/d/api-errors"
+
+  # Workflow Execution Alerts
+  - name: workflow_execution
+    rules:
+      - alert: WorkflowExecutionFailures
+        expr: workflow:execution_count:rate_5m{status="failed"} > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          team: workflows
+          category: reliability
+        annotations:
+          summary: High workflow failure rate detected
+          description: "Workflow execution failure rate is above 10% for 5 minutes"
+          dashboard_url: "{{ $externalURL }}/d/workflow-execution"
+
+      - alert: WorkflowExecutionLatency
+        expr: workflow:execution_duration:avg_5m > 300
+        for: 5m
+        labels:
+          severity: warning
+          team: workflows
+          category: performance
+        annotations:
+          summary: High workflow execution latency
+          description: "Average workflow execution duration is above 5 minutes"
+          dashboard_url: "{{ $externalURL }}/d/workflow-performance"
+
+  # Integration Service Alerts
+  - name: integration_health
+    rules:
+      - alert: HighIntegrationErrors
+        expr: integration:connection_errors:rate_5m > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          team: integrations
+          category: reliability
+        annotations:
+          summary: High integration error rate
+          description: "Integration {{ $labels.service }} error rate is above 10% for 5 minutes"
+          dashboard_url: "{{ $externalURL }}/d/integration-health"
+
+      - alert: IntegrationLatency
+        expr: integration:latency:avg_5m > 10
+        for: 5m
+        labels:
+          severity: warning
+          team: integrations
+          category: performance
+        annotations:
+          summary: High integration latency
+          description: "Integration {{ $labels.service }} latency is above 10 seconds"
+          dashboard_url: "{{ $externalURL }}/d/integration-latency"
+
+  # AI Service Alerts
+  - name: ai_service_health
+    rules:
+      - alert: HighAIProcessingErrors
+        expr: ai:error_rate:ratio_5m > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          team: ai
+          category: reliability
+        annotations:
+          summary: High AI processing error rate
+          description: "AI processing error rate is above 10% for 5 minutes"
+          dashboard_url: "{{ $externalURL }}/d/ai-processing"
+
+      - alert: AIProcessingLatency
+        expr: ai:processing_duration:avg_5m > 30
+        for: 5m
+        labels:
+          severity: warning
+          team: ai
+          category: performance
+        annotations:
+          summary: High AI processing latency
+          description: "AI processing duration is above 30 seconds"
+          dashboard_url: "{{ $externalURL }}/d/ai-latency"
+
+# Alert Inhibition Rules
+inhibit_rules:
+  - source_match:
+      severity: critical
+    target_match:
+      severity: warning
+    equal:
+      - alertname
+      - instance
+      - service
+
+# Alert Aggregation Rules
+aggregation_rules:
+  - group_by: ['alertname', 'service']
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 4h
